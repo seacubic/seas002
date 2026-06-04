@@ -149,6 +149,23 @@
             color: white;
         }
 
+        /* Time Selector Styles */
+        .time-btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 700;
+            background: rgba(255, 255, 255, 0.08);
+            color: white;
+        }
+
+        .active-time {
+            background: linear-gradient(135deg, #3a7bd5, #00d2ff);
+            color: white;
+        }
+
         .output-wrapper {
             position: relative;
             background: rgba(15, 23, 42, 0.8);
@@ -224,6 +241,19 @@
         <textarea id="rawInput" placeholder="또는 기상청 원문 데이터를 여기에 직접 붙여넣으세요..."></textarea>
     </div>
 
+    <!-- Time Selector -->
+    <div class="time-selector" style="display:flex; gap:10px; margin-bottom:20px;">
+        <button id="btnDawn" onclick="setAlertType('새벽')" class="time-btn active-time">
+            새벽 알림문
+        </button>
+        <button id="btnLunch" onclick="setAlertType('점심')" class="time-btn">
+            점심 알림문
+        </button>
+        <button id="btnEvening" onclick="setAlertType('오후')" class="time-btn">
+            오후 알림문
+        </button>
+    </div>
+
     <div class="button-group">
         <button class="btn-generate" onclick="generateAlert()">
             <span id="btnIcon">⚡</span> <span id="btnText">GENERATE ALERT</span>
@@ -238,11 +268,11 @@
         <div class="grid-output" id="gridOutput" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
             <!-- Category Cards -->
             <div class="category-card" style="background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 12px; padding: 15px;">
-                <h3 style="margin-top: 0; color: var(--accent); font-size: 0.9rem;">1. 기압계 및 날씨</h3>
+                <h3 style="margin-top: 0; color: var(--accent); font-size: 0.9rem;">1. 개황 및 날씨</h3>
                 <textarea id="cat1" oninput="syncToOutput()" style="width: 100%; height: 100px; background: transparent; border: none; color: var(--text-dim); font-size: 0.85rem; resize: none; outline: none; font-family: inherit; line-height: 1.5;">대기 중...</textarea>
             </div>
             <div class="category-card" style="background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 12px; padding: 15px;">
-                <h3 style="margin-top: 0; color: var(--accent); font-size: 0.9rem;">2. 파도 및 바람</h3>
+                <h3 style="margin-top: 0; color: var(--accent); font-size: 0.9rem;">2. 파고 및 바람</h3>
                 <textarea id="cat2" oninput="syncToOutput()" style="width: 100%; height: 100px; background: transparent; border: none; color: var(--text-dim); font-size: 0.85rem; resize: none; outline: none; font-family: inherit; line-height: 1.5;">대기 중...</textarea>
             </div>
             <div class="category-card" style="background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 12px; padding: 15px;">
@@ -253,180 +283,433 @@
                 <h3 style="margin-top: 0; color: var(--accent); font-size: 0.9rem;">4. 기온 및 조석</h3>
                 <textarea id="cat4" oninput="syncToOutput()" style="width: 100%; height: 100px; background: transparent; border: none; color: var(--text-dim); font-size: 0.85rem; resize: none; outline: none; font-family: inherit; line-height: 1.5;">대기 중...</textarea>
             </div>
+            <div class="category-card" style="background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(248, 113, 113, 0.2); border-radius: 12px; padding: 15px;">
+                <h3 style="margin-top: 0; color: #f87171; font-size: 0.9rem;">5. 특이사항</h3>
+                <textarea id="cat5" oninput="syncToOutput()" style="width: 100%; height: 100px; background: transparent; border: none; color: var(--text-dim); font-size: 0.85rem; resize: none; outline: none; font-family: inherit; line-height: 1.5;">대기 중...</textarea>
+            </div>
         </div>
 
         <label>Combined Formatted Output (Editable)</label>
         <div class="output-wrapper">
-            <textarea id="output" style="width: 100%; height: 250px; background: transparent; border: none; color: #e2e8f0; white-space: pre-wrap; font-family: 'Fira Code', 'Courier New', monospace; font-size: 0.95rem; line-height: 1.8; resize: vertical; outline: none; box-sizing: border-box;">시스템 준비됨. 데이터를 입력하거나 URL을 통해 불러오세요.</textarea>
+            <textarea id="output" style="width: 100%; height: 350px; background: transparent; border: none; color: #e2e8f0; white-space: pre-wrap; font-family: 'Fira Code', 'Courier New', monospace; font-size: 0.95rem; line-height: 1.8; resize: vertical; outline: none; box-sizing: border-box;">시스템 준비됨. 데이터를 입력하거나 URL을 통해 불러오세요.</textarea>
             <button class="btn-copy" onclick="copyToClipboard()">COPY ALL</button>
         </div>
     </div>
 
     <footer>
-        SECURE MARINE WEATHER PROTOCOL v2.1
+        SECURE MARINE WEATHER PROTOCOL v2.3
     </footer>
 </div>
 
 <script>
-    async function fetchAndParse() {
-        const url = document.getElementById('urlInput').value;
-        const rawInput = document.getElementById('rawInput');
+
+// ==============================
+// 알림문 타입
+// ==============================
+
+let currentAlertType = "새벽";
+
+// ==============================
+// 알림문 타입 선택
+// ==============================
+
+function setAlertType(type) {
+
+    currentAlertType = type;
+
+    document
+        .querySelectorAll('.time-btn')
+        .forEach(btn =>
+            btn.classList.remove('active-time')
+        );
+
+    if (type === "새벽") {
+        document
+            .getElementById('btnDawn')
+            .classList.add('active-time');
+    }
+
+    if (type === "점심") {
+        document
+            .getElementById('btnLunch')
+            .classList.add('active-time');
+    }
+
+    if (type === "오후") {
+        document
+            .getElementById('btnEvening')
+            .classList.add('active-time');
+    }
+}
+
+// ==============================
+// 텍스트 정리
+// ==============================
+
+function normalizeText(text) {
+
+    return text
+        .replace(/\r/g, '')
+        .replace(/\t/g, ' ')
+        .replace(/[ ]{2,}/g, ' ')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+}
+
+// ==============================
+// 섹션 추출
+// ==============================
+
+function findSection(text, title) {
+
+    const regex = new RegExp(
+        `<${title}>([\\s\\S]*?)(?=<|$)`,
+        'i'
+    );
+
+    const match = text.match(regex);
+
+    return match ? match[1].trim() : "";
+}
+
+// ==============================
+// 문장 추출
+// ==============================
+
+function extractSentences(text, keywords) {
+
+    if (!text) return "";
+
+    const sentences = text
+        .replace(/\n/g, ' ')
+        .split(/(?<=[.!?])\s+/)
+        .map(v => v.trim())
+        .filter(v => v.length > 0);
+
+    const results = [];
+
+    for (const sentence of sentences) {
+
+        const matched = keywords.some(keyword =>
+            sentence.includes(keyword)
+        );
+
+        if (matched && sentence.length >= 10) {
+            results.push(sentence);
+        }
+    }
+
+    return [...new Set(results)].join('\n');
+}
+
+// ==============================
+// 불필요 문장 제거
+// ==============================
+
+function cleanForecastText(text) {
+
+    return text
+
+        .replace(/\(\d+일\)/g, '')
+
+        .replace(/\* 예상 강수량[\s\S]*?(?=\n\n|$)/g, '')
+
+        .replace(/\* 소나기에 의한 예상 강수량[\s\S]*?(?=\n\n|$)/g, '')
+
+        .replace(/\*/g, '')
+
+        .replace(/[ ]{2,}/g, ' ')
+
+        .trim();
+}
+
+// ==============================
+// Bullet 제거
+// ==============================
+
+function removeBullet(text) {
+
+    return text
+        .replace(/○\s*/g, '')
+        .replace(/-\s*/g, '')
+        .replace(/\*\s*/g, '')
+        .trim();
+}
+
+// ==============================
+// 중복 제거
+// ==============================
+
+function uniqueLines(text) {
+
+    const lines = text
+        .split('\n')
+        .map(v => v.trim())
+        .filter(v => v.length > 0);
+
+    return [...new Set(lines)].join('\n');
+}
+
+// ==============================
+// 시간대별 필터
+// ==============================
+
+function filterByAlertType(text) {
+
+    if (!text) return "";
+
+    const sentences = text
+        .split('\n')
+        .map(v => v.trim())
+        .filter(v => v.length > 0);
+
+    // ==========================
+    // 새벽 / 점심
+    // 오늘 내용만
+    // ==========================
+
+    if (
+        currentAlertType === "새벽" ||
+        currentAlertType === "점심"
+    ) {
+
+        return sentences.filter(sentence => {
+
+            return (
+
+                sentence.includes("오늘") ||
+
+                (
+                    !sentence.includes("내일") &&
+                    !sentence.includes("모레") &&
+                    !sentence.includes("글피")
+                )
+            );
+
+        }).join('\n');
+    }
+
+    // ==========================
+    // 오후
+    // 오늘 오후 + 내일 오전
+    // ==========================
+
+    if (currentAlertType === "오후") {
+
+        return sentences.filter(sentence => {
+
+            const todayCondition =
+
+                sentence.includes("오늘") ||
+
+                (
+                    !sentence.includes("모레") &&
+                    !sentence.includes("글피")
+                );
+
+            const tomorrowCondition =
+
+                sentence.includes("내일") &&
+                (
+                    sentence.includes("오전") ||
+                    sentence.includes("아침") ||
+                    sentence.includes("새벽") ||
+                    sentence.includes("09시") ||
+                    sentence.includes("12시")
+                );
+
+            return (
+                todayCondition ||
+                tomorrowCondition
+            );
+
+        }).join('\n');
+    }
+
+    return text;
+}
+
+// ==============================
+// 알림문 생성
+// ==============================
+
+function generateAlert() {
+
+    const rawInput =
+        document.getElementById('rawInput').value;
+
+    const btnIcon = document.getElementById('btnIcon');
+    const btnText = document.getElementById('btnText');
+
+    if (!rawInput.trim()) {
+        alert('원문을 입력해주세요.');
+        return;
+    }
+
+    // 로딩 표시
+    if (btnIcon) btnIcon.textContent = "⏳";
+    if (btnText) btnText.textContent = "PROCESSING...";
+
+    setTimeout(() => {
+        const input = normalizeText(rawInput);
+
+        // 섹션 추출
+        const rainInfo = findSection(input, "강수 및 유의 사항");
+        const tempInfo = findSection(input, "기온 및 하늘상태");
+        const cautionInfo = findSection(input, "유의 사항");
+        const pressureInfo = findSection(input, "기압계 현황 및 전망");
+
+        // 개황 및 날씨
+        const pressureSentences = extractSentences(pressureInfo, ["고기압", "저기압", "기압골", "영향", "이동"]);
+        const skySentences = extractSentences(tempInfo, ["구름많", "흐리", "맑"]);
+        const rainSentences = extractSentences(rainInfo, ["소나기", "비", "강수"]);
+
+        let weatherText = `${pressureSentences}\n\n${skySentences}\n\n${rainSentences}`;
+
+        // 파고 및 바람
+        let waveText = extractSentences(cautionInfo, ["너울", "물결", "풍랑", "해상", "돌풍", "천둥", "번개"]);
+
+        // 안개 및 시정
+        let fogText = extractSentences(cautionInfo, ["바다 안개", "안개", "시정", "가시거리"]);
+
+        // 기온 및 조석
+        let tempText = extractSentences(tempInfo, ["기온", "최저기온", "최고기온", "평년"]);
+
+        // 특이사항
+        let specialText = extractSentences(input, ["우박", "돌풍", "천둥", "번개", "강한 소나기", "너울"]);
+
+        // 정리 및 필터 적용 후 카드 출력
+        const process = (t) => filterByAlertType(uniqueLines(cleanForecastText(removeBullet(t))));
+
+        document.getElementById('cat1').value = process(weatherText) || "정보 없음";
+        document.getElementById('cat2').value = process(waveText) || "정보 없음";
+        document.getElementById('cat3').value = process(fogText) || "정보 없음";
+        document.getElementById('cat4').value = process(tempText) || "정보 없음";
+        document.getElementById('cat5').value = process(specialText) || "특이사항 없음";
+
+        syncToOutput();
+
+        if (btnIcon) btnIcon.textContent = "⚡";
+        if (btnText) btnText.textContent = "GENERATE ALERT";
+        document.getElementById('output').parentElement.scrollIntoView({ behavior: 'smooth' });
+    }, 400);
+}
+
+// ==============================
+// 출력 동기화 (실시간 편집 반영)
+// ==============================
+
+function syncToOutput() {
+    const now = new Date();
+    const dateText =
+        `${now.getFullYear()}. ` +
+        `${String(now.getMonth() + 1).padStart(2, '0')}. ` +
+        `${String(now.getDate()).padStart(2, '0')}.` +
+        `(${['일','월','화','수','목','금','토'][now.getDay()]})`;
+
+    const weatherVal = document.getElementById('cat1').value;
+    const waveVal = document.getElementById('cat2').value;
+    const fogVal = document.getElementById('cat3').value;
+    const tempVal = document.getElementById('cat4').value;
+    const specialVal = document.getElementById('cat5').value;
+
+    let result = `
+해양기상정보 알림문 (${currentAlertType})
+
+〈${dateText} 운항상황센터〉
+
+<오늘의 바다 날씨 정보입니다.>
+
+(개황, 날씨)
+${weatherVal}
+
+(파고, 바람)
+${waveVal}
+
+(안개, 시정)
+${fogVal}
+
+(기온, 조석)
+${tempVal}
+`;
+
+    if (specialVal.trim() && specialVal !== "특이사항 없음" && specialVal !== "정보 없음") {
+        result += `
+
+<특이사항>
+${specialVal}
+`;
+    }
+
+    result += `
+
+이상 한국해양교통안전공단 운항상황센터에서 전해드렸습니다.
+`;
+
+    document.getElementById('output').value = result.trim();
+}
+
+// ==============================
+// URL 데이터 가져오기
+// ==============================
+
+async function fetchAndParse() {
+    const url = document.getElementById('urlInput').value;
+    const rawInput = document.getElementById('rawInput');
+    
+    if (!url) {
+        alert('URL을 입력해주세요.');
+        return;
+    }
+
+    rawInput.placeholder = "데이터를 불러오는 중...";
+    rawInput.value = "";
+
+    try {
+        const response = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`);
+        if (!response.ok) throw new Error('Network response was not ok');
         
-        if (!url) {
-            alert('URL을 입력해주세요.');
-            return;
-        }
-
-        rawInput.placeholder = "데이터를 불러오는 중...";
-        rawInput.value = "";
-
-        try {
-            // 참고: 브라우저 보안(CORS) 정책으로 인해 실제 운영 시에는 프록시 서버가 필요할 수 있습니다.
-            // 여기서는 시연을 위해 간단한 fetch 구조를 제안합니다.
-            const response = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`);
-            if (!response.ok) throw new Error('Network response was not ok');
-            
-            const data = await response.json();
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(data.contents, 'text/html');
-            
-            // 기상청 페이지 등에서 주요 텍스트 추출 (사이트 구조에 따라 조정 필요)
-            const textContent = doc.body.innerText || doc.body.textContent;
-            rawInput.value = textContent.trim().substring(0, 5000); // 너무 길 경우 자름
-            rawInput.placeholder = "데이터를 성공적으로 불러왔습니다.";
-            
-            alert('URL 데이터를 성공적으로 불러왔습니다. 이제 GENERATE ALERT 버튼을 눌러주세요.');
-        } catch (error) {
-            console.error('Fetch error:', error);
-            alert('URL 데이터를 가져오는데 실패했습니다. (CORS 제한 또는 잘못된 URL)');
-            rawInput.placeholder = "직접 붙여넣기를 이용해주세요.";
-        }
-    }
-
-    function generateAlert() {
-        const input = document.getElementById('rawInput').value;
-        const outputElement = document.getElementById('output');
-        const btnIcon = document.getElementById('btnIcon');
-        const btnText = document.getElementById('btnText');
-
-        if (!input.trim()) {
-            alert('데이터를 입력하거나 FETCH 기능을 사용해주세요.');
-            return;
-        }
-
-        // 로딩 상태 표시
-        btnIcon.textContent = "⏳";
-        btnText.textContent = "PROCESSING...";
-
-        setTimeout(() => {
-            const now = new Date();
-            const year = now.getFullYear();
-            const month = String(now.getMonth() + 1).padStart(2, '0');
-            const day = String(now.getDate()).padStart(2, '0');
-            const week = ['일', '월', '화', '수', '목', '금', '토'][now.getDay()];
-            const hours = String(now.getHours()).padStart(2, '0');
-            const minutes = String(now.getMinutes()).padStart(2, '0');
-            
-            const timestamp = `${year}. ${month}. ${day}. (${week}) ${hours}:${minutes}`;
-
-            let formattedText = `[해상기상정보 알림문 - ${timestamp}]\n\n`;
-
-            // 고도화된 카테고리별 파싱 로직 (원문 내용 최대한 보존)
-            const extract = (patterns, fallback = "") => {
-                for (const pattern of patterns) {
-                    const match = input.match(pattern);
-                    if (match && match[1]) return match[1].trim();
-                }
-                return fallback;
-            };
-
-            // 데이터 추출
-            const data = {
-                pressure: extract([
-                    /(?:현황|기압|요약)\s*[:\s]([\s\S]*?)(?=○|날씨|전망|$)/,
-                    /○\s*([\s\S]*?기압[\s\S]*?)(?=날씨|파고|$)/
-                ]),
-                weather: extract([/(?:날씨|기상)\s*[:\s]([\s\S]*?)(?=○|파고|바람|$)/, /날씨\s*([\s\S]*?)(?=파고|바람|$)/]),
-                waves: extract([/(?:파고|물결|파도)\s*[:\s]([\s\S]*?)(?=○|바람|안개|$)/, /파도\s*([\s\S]*?)(?=바람|안개|$)/]),
-                wind: extract([/(?:바람|풍속|풍향)\s*[:\s]([\s\S]*?)(?=○|안개|시정|$)/, /바람\s*([\s\S]*?)(?=안개|시정|$)/]),
-                fog: extract([/(?:안개|해무)\s*[:\s]([\s\S]*?)(?=○|시정|기온|$)/, /안개\s*([\s\S]*?)(?=시정|기온|$)/]),
-                visibility: extract([/(?:시정|가시거리)\s*[:\s]([\s\S]*?)(?=○|안개|기온|$)/, /시정\s*([\s\S]*?)(?=안개|기온|$)/]),
-                temp: extract([/(?:기온|온도)\s*[:\s]([\s\S]*?)(?=○|조석|비고|$)/, /기온\s*([\s\S]*?)(?=조석|비고|$)/]),
-                tides: extract([/(?:조석|물때|만조|간조)\s*[:\s]([\s\S]*?)(?=○|기온|비고|$)/, /조석\s*([\s\S]*?)(?=기온|비고|$)/])
-            };
-
-            // 1. 개황 및 날씨
-            let cat1Text = "";
-            if (data.pressure) {
-                const sentences = data.pressure.split(/[.!?\n]/);
-                const pressureSentences = sentences.filter(s => s.includes('기압')).map(s => s.trim()).filter(s => s.length > 0);
-                if (pressureSentences.length > 0) {
-                    cat1Text += `개황: ${pressureSentences.join('. ')}.\n`;
-                }
-            }
-            if (data.weather) cat1Text += `날씨: ${data.weather}\n`;
-            document.getElementById('cat1').value = cat1Text.trim() || "해당 정보 없음";
-
-            // 2. 파도 및 바람
-            let cat2Text = "";
-            if (data.waves) cat2Text += `파도: ${data.waves}\n`;
-            if (data.wind) cat2Text += `바람: ${data.wind}\n`;
-            document.getElementById('cat2').value = cat2Text.trim() || "해당 정보 없음";
-
-            // 3. 안개 및 시정
-            let cat3Text = "";
-            if (data.fog) cat3Text += `안개: ${data.fog}\n`;
-            if (data.visibility) cat3Text += `시정: ${data.visibility}\n`;
-            document.getElementById('cat3').value = cat3Text.trim() || "해당 정보 없음";
-
-            // 4. 기온 및 조석
-            let cat4Text = "";
-            if (data.temp) cat4Text += `기온: ${data.temp}\n`;
-            if (data.tides) cat4Text += `조석: ${data.tides}\n`;
-            document.getElementById('cat4').value = cat4Text.trim() || "해당 정보 없음";
-
-            syncToOutput(); // 초기 생성 시 전체 텍스트 동기화
-            
-            btnIcon.textContent = "⚡";
-            btnText.textContent = "GENERATE ALERT";
-            document.getElementById('output').parentElement.scrollIntoView({ behavior: 'smooth' });
-        }, 800);
-    }
-
-    // 각 카테고리 수정 시 전체 결과 업데이트
-    function syncToOutput() {
-        const now = new Date();
-        const timestamp = `${now.getFullYear()}. ${String(now.getMonth() + 1).padStart(2, '0')}. ${String(now.getDate()).padStart(2, '0')}. (${['일', '월', '화', '수', '목', '금', '토'][now.getDay()]}) ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-
-        let combined = `[해상기상정보 알림문 - ${timestamp}]\n\n`;
-        combined += `○ 개황 및 날씨\n- ${document.getElementById('cat1').value}\n\n`;
-        combined += `○ 파도 및 바람\n- ${document.getElementById('cat2').value}\n\n`;
-        combined += `○ 안개 및 시정\n- ${document.getElementById('cat3').value}\n\n`;
-        combined += `○ 기온 및 조석\n- ${document.getElementById('cat4').value}\n\n`;
+        const data = await response.json();
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(data.contents, 'text/html');
         
-        // 해역별 정보는 원문에서 다시 파싱하거나 유지 (여기서는 기존 데이터 유지 로직 생략 가능 시 직접 수정 가능)
-        combined += `* 본 정보는 시스템에 의해 생성되었으며 사용자가 수동으로 수정할 수 있습니다.`;
-
-        document.getElementById('output').value = combined;
+        const textContent = doc.body.innerText || doc.body.textContent;
+        rawInput.value = textContent.trim().substring(0, 5000);
+        rawInput.placeholder = "데이터를 성공적으로 불러왔습니다.";
+        
+        alert('URL 데이터를 성공적으로 불러왔습니다. 이제 GENERATE ALERT 버튼을 눌러주세요.');
+    } catch (error) {
+        console.error('Fetch error:', error);
+        alert('URL 데이터를 가져오는데 실패했습니다. (CORS 제한 또는 잘못된 URL)');
+        rawInput.placeholder = "직접 붙여넣기를 이용해주세요.";
     }
+}
 
-    function clearInput() {
-        document.getElementById('rawInput').value = '';
-        document.getElementById('cat1').value = '대기 중...';
-        document.getElementById('cat2').value = '대기 중...';
-        document.getElementById('cat3').value = '대기 중...';
-        document.getElementById('cat4').value = '대기 중...';
-        document.getElementById('output').value = '시스템 준비됨. 데이터를 입력하거나 URL을 통해 불러오세요.';
-    }
+// ==============================
+// 초기화
+// ==============================
 
-    function copyToClipboard() {
-        const outputText = document.getElementById('output').value;
-        navigator.clipboard.writeText(outputText).then(() => {
-            alert('클립보드에 복사되었습니다.');
-        }).catch(err => {
-            console.error('복사 실패:', err);
-        });
-    }
+function clearInput() {
+    document.getElementById('rawInput').value = '';
+    document.getElementById('cat1').value = '대기 중...';
+    document.getElementById('cat2').value = '대기 중...';
+    document.getElementById('cat3').value = '대기 중...';
+    document.getElementById('cat4').value = '대기 중...';
+    document.getElementById('cat5').value = '대기 중...';
+    document.getElementById('output').value = '시스템 준비됨. 데이터를 입력하거나 URL을 통해 불러오세요.';
+}
+
+// ==============================
+// 복사
+// ==============================
+
+function copyToClipboard() {
+    const output = document.getElementById('output').value;
+    navigator.clipboard.writeText(output)
+        .then(() => alert('복사되었습니다.'))
+        .catch(err => console.error(err));
+}
+
 </script>
 
 </body>
