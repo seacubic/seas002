@@ -272,7 +272,7 @@
                 <textarea id="cat1" oninput="syncToOutput()" style="width: 100%; height: 100px; background: transparent; border: none; color: var(--text-dim); font-size: 0.85rem; resize: none; outline: none; font-family: inherit; line-height: 1.5;">대기 중...</textarea>
             </div>
             <div class="category-card" style="background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 12px; padding: 15px;">
-                <h3 style="margin-top: 0; color: var(--accent); font-size: 0.9rem;">2. 파고 및 바람</h3>
+                <h3 style="margin-top: 0; color: var(--accent); font-size: 0.9rem;">2. 바람 및 파고</h3>
                 <textarea id="cat2" oninput="syncToOutput()" style="width: 100%; height: 100px; background: transparent; border: none; color: var(--text-dim); font-size: 0.85rem; resize: none; outline: none; font-family: inherit; line-height: 1.5;">대기 중...</textarea>
             </div>
             <div class="category-card" style="background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 12px; padding: 15px;">
@@ -290,6 +290,11 @@
         </div>
 
         <label>Combined Formatted Output (Editable)</label>
+        <div style="margin-bottom: 15px;">
+            <button onclick="rebuildBroadcast()" style="width: 100%; background: var(--secondary-glow); color: white; padding: 12px; font-size: 0.9rem;">
+                🔄 수정내용 종합 집계
+            </button>
+        </div>
         <div class="output-wrapper">
             <textarea id="output" style="width: 100%; height: 350px; background: transparent; border: none; color: #e2e8f0; white-space: pre-wrap; font-family: 'Fira Code', 'Courier New', monospace; font-size: 0.95rem; line-height: 1.8; resize: vertical; outline: none; box-sizing: border-box;">시스템 준비됨. 데이터를 입력하거나 URL을 통해 불러오세요.</textarea>
             <button class="btn-copy" onclick="copyToClipboard()">COPY ALL</button>
@@ -529,6 +534,140 @@ function filterByAlertType(text) {
     return text;
 }
 
+// ==========================
+// 강수 요약 생성
+// ==========================
+
+function summarizeRainInfo(text) {
+
+    if (!text) return "";
+
+    let summary = "";
+
+    // 비 / 소나기 여부
+    const hasRain =
+        text.includes("비") ||
+        text.includes("소나기");
+
+    if (!hasRain) {
+        return "";
+    }
+
+    // 지역 요약
+    let areaText = "";
+
+    if (text.includes("전국")) {
+        areaText = "전국 대부분 지역";
+    }
+
+    else if (text.includes("내륙")) {
+        areaText = "일부 내륙 지역";
+    }
+
+    else {
+        areaText = "일부 지역";
+    }
+
+    // 최대 강수량 추출
+    const mmMatches =
+        [...text.matchAll(/(\d+)\s*~\s*(\d+)mm/g)];
+
+    let maxRain = 0;
+
+    mmMatches.forEach(match => {
+
+        const value =
+            parseInt(match[2]);
+
+        if (value > maxRain) {
+            maxRain = value;
+        }
+    });
+
+    // 문장 생성
+    summary =
+        `${areaText}에 비가 오는 곳이 있겠으며`;
+
+    if (maxRain > 0) {
+
+        summary +=
+            `, 많은 곳은 최대 ${maxRain}mm의 강수량이 예상됩니다.`;
+
+    } else {
+
+        summary += `.`;
+    }
+
+    return summary;
+}
+
+// ==========================
+// 특이사항 (간단 요약)
+// ==========================
+
+function makeSpecialSummary(text) {
+
+    let specialList = [];
+
+    // 강풍 / 돌풍
+    if (
+        text.includes("돌풍") ||
+        text.includes("강풍")
+    ) {
+
+        specialList.push(
+            "돌풍 및 강풍 유의"
+        );
+    }
+
+    // 천둥 번개
+    if (
+        text.includes("천둥") ||
+        text.includes("번개")
+    ) {
+
+        specialList.push(
+            "해상 천둥·번개 유의"
+        );
+    }
+
+    // 안개
+    if (
+        text.includes("안개") ||
+        text.includes("가시거리")
+    ) {
+
+        specialList.push(
+            "해상 안개 및 저시정 유의"
+        );
+    }
+
+    // 너울
+    if (
+        text.includes("너울")
+    ) {
+
+        specialList.push(
+            "해안가 너울 유의"
+        );
+    }
+
+    // 우박
+    if (
+        text.includes("우박")
+    ) {
+
+        specialList.push(
+            "우박 가능성 유의"
+        );
+    }
+
+    // 최대 2줄만
+    return [...new Set(specialList)]
+        .slice(0, 2)
+        .join('\n');
+}
+
 // ==============================
 // 알림문 생성
 // ==============================
@@ -562,21 +701,40 @@ function generateAlert() {
         // 개황 및 날씨
         const pressureSentences = extractSentences(pressureInfo, ["고기압", "저기압", "기압골", "영향", "이동"]);
         const skySentences = extractSentences(tempInfo, ["구름많", "흐리", "맑"]);
-        const rainSentences = extractSentences(rainInfo, ["소나기", "비", "강수"]);
+        const rainSentences = summarizeRainInfo(rainInfo);
 
         let weatherText = `${pressureSentences}\n\n${skySentences}\n\n${rainSentences}`;
 
-        // 파고 및 바람
-        let waveText = extractSentences(cautionInfo, ["너울", "물결", "풍랑", "해상", "돌풍", "천둥", "번개"]);
+        // 바람 및 파고
+        let waveText = extractSentences(cautionInfo, ["풍랑", "강풍", "돌풍", "풍속", "파고", "물결", "너울", "천둥", "번개"]);
+        waveText = waveText.split('\n').filter(sentence => {
+            return (
+                !sentence.includes("안개") &&
+                !sentence.includes("가시거리") &&
+                !sentence.includes("시정")
+            );
+        }).join('\n');
 
         // 안개 및 시정
-        let fogText = extractSentences(cautionInfo, ["바다 안개", "안개", "시정", "가시거리"]);
+        let fogText = extractSentences(cautionInfo, ["바다 안개", "안개", "가시거리", "시정", "짙은 안개", "해무"]);
+        if (fogText) {
+            const hasSeaFog = fogText.includes("바다 안개");
+            const hasVisibility = fogText.includes("가시거리");
+            let fogSummary = "";
+            if (hasSeaFog) {
+                fogSummary += "서해상과 동해상을 중심으로 바다 안개가 끼는 곳이 있겠습니다. ";
+            }
+            if (hasVisibility) {
+                fogSummary += "일부 해상과 섬 지역에는 가시거리 200m 미만의 짙은 안개가 끼는 곳이 있겠습니다.";
+            }
+            fogText = fogSummary.trim();
+        }
 
         // 기온 및 조석
         let tempText = extractSentences(tempInfo, ["기온", "최저기온", "최고기온", "평년"]);
 
-        // 특이사항
-        let specialText = extractSentences(input, ["우박", "돌풍", "천둥", "번개", "강한 소나기", "너울"]);
+        // 특이사항 (요약 함수 사용)
+        let specialSummary = makeSpecialSummary(input);
 
         // 정리 및 필터 적용 후 카드 출력
         const process = (t) => filterByAlertType(uniqueLines(cleanForecastText(removeBullet(t))));
@@ -585,7 +743,7 @@ function generateAlert() {
         document.getElementById('cat2').value = process(waveText) || "정보 없음";
         document.getElementById('cat3').value = process(fogText) || "정보 없음";
         document.getElementById('cat4').value = process(tempText) || "정보 없음";
-        document.getElementById('cat5').value = process(specialText) || "특이사항 없음";
+        document.getElementById('cat5').value = specialSummary || "특이사항 없음";
 
         syncToOutput();
 
@@ -593,6 +751,21 @@ function generateAlert() {
         if (btnText) btnText.textContent = "GENERATE ALERT";
         document.getElementById('output').parentElement.scrollIntoView({ behavior: 'smooth' });
     }, 400);
+}
+
+// ==============================
+// 수정내용 종합 집계 (버튼 호출)
+// ==============================
+
+function rebuildBroadcast() {
+    syncToOutput();
+    
+    // 시각적 피드백: 잠시 버튼 색상 변경 또는 알림
+    const outputArea = document.getElementById('output');
+    outputArea.style.boxShadow = "0 0 20px rgba(56, 189, 248, 0.4)";
+    setTimeout(() => {
+        outputArea.style.boxShadow = "none";
+    }, 500);
 }
 
 // ==============================
@@ -611,7 +784,6 @@ function syncToOutput() {
     const waveVal = document.getElementById('cat2').value;
     const fogVal = document.getElementById('cat3').value;
     const tempVal = document.getElementById('cat4').value;
-    const specialVal = document.getElementById('cat5').value;
 
     let result = `
 해양기상정보 알림문 (${currentAlertType})
@@ -623,7 +795,7 @@ function syncToOutput() {
 (개황, 날씨)
 ${weatherVal}
 
-(파고, 바람)
+(바람, 파고)
 ${waveVal}
 
 (안개, 시정)
@@ -631,17 +803,6 @@ ${fogVal}
 
 (기온, 조석)
 ${tempVal}
-`;
-
-    if (specialVal.trim() && specialVal !== "특이사항 없음" && specialVal !== "정보 없음") {
-        result += `
-
-<특이사항>
-${specialVal}
-`;
-    }
-
-    result += `
 
 이상 한국해양교통안전공단 운항상황센터에서 전해드렸습니다.
 `;
