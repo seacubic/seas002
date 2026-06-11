@@ -1,0 +1,2034 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>해양기상정보 알림문 생성기</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        :root {
+            --primary-glow: #00d2ff;
+            --secondary-glow: #3a7bd5;
+            --bg-dark: #0f172a;
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --text-main: #f8fafc;
+            --text-dim: #94a3b8;
+            --accent: #38bdf8;
+            --border-radius: 16px;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        button, input[type="text"] {
+            transition: transform 0.3s ease, box-shadow 0.3s ease, background 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+        }
+
+        body {
+            font-family: 'Inter', 'Pretendard', sans-serif;
+            background: radial-gradient(circle at top right, #1e293b, #0f172a);
+            color: var(--text-main);
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            overflow-x: hidden;
+        }
+
+        /* Animated Background Waves */
+        body::before {
+            content: "";
+            position: fixed;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(56, 189, 248, 0.05) 0%, transparent 70%);
+            animation: rotate 20s linear infinite;
+            z-index: -1;
+        }
+
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .container {
+            width: 100%;
+            max-width: 900px;
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: var(--border-radius);
+            padding: 40px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            text-align: center;
+            margin-bottom: 40px;
+            background: linear-gradient(to right, #00d2ff, #9cedff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.05em;
+        }
+
+        .input-group, .output-group {
+            margin-bottom: 30px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 12px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+
+        textarea {
+            width: 100%;
+            height: 180px;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            color: var(--text-main);
+            padding: 15px;
+            font-size: 1rem;
+            resize: none;
+            outline: none;
+        }
+
+        textarea:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.3);
+        }
+
+        .button-group {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        button {
+            flex: 1;
+            padding: 15px;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-generate {
+            background: linear-gradient(135deg, #3a7bd5, #00d2ff);
+            color: white;
+            box-shadow: 0 10px 20px -5px rgba(0, 210, 255, 0.4);
+        }
+
+        .btn-generate:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 25px -5px rgba(0, 210, 255, 0.5);
+        }
+
+        .btn-clear {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-dim);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .btn-clear:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+
+        /* Time Selector Styles */
+        .time-btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 700;
+            background: rgba(255, 255, 255, 0.08);
+            color: white;
+        }
+
+        .active-time {
+            background: linear-gradient(135deg, #3a7bd5, #00d2ff);
+            color: white;
+        }
+
+        .output-wrapper {
+            position: relative;
+            background: rgba(15, 23, 42, 0.8);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 20px;
+        }
+
+        #output {
+            width: 100%;
+            height: 250px;
+            color: #e2e8f0;
+            white-space: pre-wrap;
+            font-family: 'Fira Code', 'Courier New', monospace;
+            font-size: 0.95rem;
+            overflow-y: auto;
+            line-height: 1.8;
+        }
+
+        .btn-copy {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: rgba(56, 189, 248, 0.1);
+            color: var(--accent);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            padding: 6px 12px;
+            font-size: 0.75rem;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .btn-copy:hover {
+            background: var(--accent);
+            color: var(--bg-dark);
+        }
+
+        footer {
+            margin-top: 40px;
+            text-align: center;
+            color: var(--text-dim);
+            font-size: 0.8rem;
+            letter-spacing: 0.05em;
+        }
+
+        /* Scrollbar Styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.1);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        /* 편집 섹션 */
+        .edit-section {
+            margin-bottom: 12px;
+        }
+        .edit-label {
+            font-size: 0.78rem;
+            color: #64748b;
+            letter-spacing: 0.05em;
+            margin-bottom: 3px;
+            user-select: none;
+        }
+        .edit-block {
+            min-height: 32px;
+            padding: 8px 10px;
+            border-radius: 6px;
+            border: 1px solid transparent;
+            white-space: pre-wrap;
+            word-break: break-all;
+            outline: none;
+            color: #e2e8f0;
+            background: transparent;
+            font-family: 'Fira Code', 'Courier New', monospace;
+            font-size: 0.95rem;
+            line-height: 1.8;
+            cursor: text;
+        }
+        .edit-block:hover {
+            border-color: rgba(56, 189, 248, 0.15);
+            background: rgba(56, 189, 248, 0.03);
+        }
+        .edit-block:focus {
+            border-color: rgba(56, 189, 248, 0.4);
+            background: rgba(56, 189, 248, 0.05);
+            box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.08);
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>해양기상 알림문</h1>
+    
+    <div class="input-group">
+        <label>예보 원문</label>
+        <textarea id="rawInput" placeholder="기상청 원문 데이터를 여기에 붙여넣으세요..."></textarea>
+    </div>
+
+    <div class="input-group">
+        <label>해역 예보</label>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 15px; padding: 20px; background: rgba(255, 255, 255, 0.03); border: 1px dashed rgba(56, 189, 248, 0.3); border-radius: 12px;">
+            <label style="margin-bottom: 0; color: var(--accent); font-size: 1rem;">해역별 상세 예보 데이터</label>
+            <input type="file" id="csvFileInput" accept=".csv" style="display: none;" onchange="readCSV(this)">
+            <button type="button" onclick="document.getElementById('csvFileInput').click()" style="width: 100%; max-width: 300px; padding: 15px; font-size: 1rem; border-radius: 10px; background: linear-gradient(135deg, #3a7bd5, #00d2ff); color: white; border: none; cursor: pointer; font-weight: 700; box-shadow: 0 10px 20px -5px rgba(0, 210, 255, 0.4); display: flex; align-items: center; justify-content: center; gap: 10px;">
+                <span>📁 CSV 파일 업로드</span>
+            </button>
+            <p style="font-size: 0.8rem; color: var(--text-dim); margin: 0;">CSV 파일을 업로드하면 2페이지 내용이 자동으로 생성됩니다.</p>
+        </div>
+        <!-- Hidden textarea to store data for buildSecondPageForecast logic -->
+        <textarea id="extraForecast" style="display: none;"></textarea>
+    </div>
+
+    <!-- Time Selector -->
+    <div class="time-selector" style="display:flex; gap:10px; margin-bottom:20px;">
+        <button id="btnDawn" onclick="setAlertType('새벽')" class="time-btn active-time">
+            새벽 알림문
+        </button>
+        <button id="btnLunch" onclick="setAlertType('점심')" class="time-btn">
+            점심 알림문
+        </button>
+        <button id="btnEvening" onclick="setAlertType('오후')" class="time-btn">
+            오후 알림문
+        </button>
+    </div>
+
+    <div class="button-group">
+        <button class="btn-generate" onclick="generateAlert()" style="width: 100%;">
+            <span id="btnIcon">⚡</span> <span id="btnText">알림문 생성</span>
+        </button>
+    </div>
+
+    <div class="output-group">
+        <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+            <button onclick="openPrintPreview()" style="flex: 1; background: var(--secondary-glow); color: white; padding: 12px; font-size: 0.9rem; border-radius: 8px;">
+                🖨️ 프린트 / 저장
+            </button>
+            <button onclick="openEmailModal()" style="flex: 1; background: #7c3aed; color: white; padding: 12px; font-size: 0.9rem; border-radius: 8px; border: none; cursor: pointer;">
+                ✉️ 이메일 발송
+            </button>
+            <button onclick="clearInput()" style="flex: 0 0 auto; background: rgba(255,255,255,0.05); color: #94a3b8; padding: 12px 20px; font-size: 0.9rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); cursor: pointer;">
+                CLEAR
+            </button>
+        </div>
+        <div id="broadcastArea">
+            <div class="output-wrapper">
+                <div id="outputDisplay" style="width: 100%; color: #e2e8f0; font-family: 'Fira Code', 'Courier New', monospace; font-size: 0.95rem; line-height: 1.8; box-sizing: border-box; padding-right: 60px;">
+
+                    <!-- 헤더 (편집 불가) -->
+                    <div id="outHeader" style="color: #94a3b8; margin-bottom: 8px;"></div>
+
+                    <!-- 섹션별 편집 영역 -->
+                    <div class="edit-section">
+                        <div class="edit-label">(개황, 날씨)</div>
+                        <div id="edit1" contenteditable="true" class="edit-block" spellcheck="false"></div>
+                    </div>
+                    <div class="edit-section">
+                        <div class="edit-label">(바람, 파고)</div>
+                        <div id="edit2" contenteditable="true" class="edit-block" spellcheck="false"></div>
+                    </div>
+                    <div class="edit-section">
+                        <div class="edit-label">(안개, 시정)</div>
+                        <div id="edit3" contenteditable="true" class="edit-block" spellcheck="false"></div>
+                    </div>
+                    <div class="edit-section">
+                        <div class="edit-label">(기온, 조석)</div>
+                        <div id="edit4" contenteditable="true" class="edit-block" spellcheck="false"></div>
+                    </div>
+
+                    <!-- 마무리 문구 (1페이지 제거) -->
+
+                    <!-- 2페이지 편집 영역 -->
+                    <div class="edit-section">
+                        <div class="edit-label" style="color: #38bdf8;">해역별 예보</div>
+                        <div id="edit5" contenteditable="true" class="edit-block" spellcheck="false"></div>
+                    </div>
+
+                    <!-- 2페이지 푸터 (편집 불가) -->
+                    <div id="outFooter" style="color: #94a3b8; margin-top: 12px; line-height: 1.9;"></div>
+
+                </div>
+                <textarea id="output" style="display:none;"></textarea>
+                <textarea id="cat1" style="display:none;">대기 중...</textarea>
+                <textarea id="cat2" style="display:none;">대기 중...</textarea>
+                <textarea id="cat3" style="display:none;">대기 중...</textarea>
+                <textarea id="cat4" style="display:none;">대기 중...</textarea>
+                <button class="btn-copy" style="display:none;" onclick="copyToClipboard()">COPY ALL</button>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        해양기상 알림문 생성 시스템
+    </footer>
+</div>
+
+<script>
+
+// ==============================
+// 알림문 타입
+// ==============================
+
+let currentAlertType = "새벽";
+
+// CSV에서 파싱한 전체 해역 풍속·파고 집계 (바람파고 원문 없을 때 사용)
+let csvWindWaveSummary = null;
+
+// CSV 발표 기준 시각 (예: "2026.06.09. 17:00")
+let csvAnnounceTime = '';
+
+// ==============================
+// 알림문 타입 선택
+// ==============================
+
+function setAlertType(type) {
+
+    currentAlertType = type;
+
+    document
+        .querySelectorAll('.time-btn')
+        .forEach(btn =>
+            btn.classList.remove('active-time')
+        );
+
+    if (type === "새벽") {
+        document
+            .getElementById('btnDawn')
+            .classList.add('active-time');
+    }
+
+    if (type === "점심") {
+        document
+            .getElementById('btnLunch')
+            .classList.add('active-time');
+    }
+
+    if (type === "오후") {
+        document
+            .getElementById('btnEvening')
+            .classList.add('active-time');
+    }
+}
+
+// ==============================
+// 텍스트 정리
+// ==============================
+
+function normalizeText(text) {
+
+    return text
+        .replace(/\r/g, '')
+        .replace(/\t/g, ' ')
+        .replace(/[ ]{2,}/g, ' ')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+}
+
+// ==============================
+// 섹션 추출
+// ==============================
+
+function findSection(text, title) {
+
+    const regex = new RegExp(
+        `<${title}>([\\s\\S]*?)(?=<|$)`,
+        'i'
+    );
+
+    const match = text.match(regex);
+
+    return match ? match[1].trim() : "";
+}
+
+// ==============================
+// 문장 추출
+// ==============================
+
+function extractSentences(text, keywords) {
+
+    if (!text) return "";
+
+    const sentences = text
+        .replace(/\n/g, ' ')
+        .split(/(?<=[.!?])\s+/)
+        .map(v => v.trim())
+        .filter(v => v.length > 0);
+
+    const results = [];
+
+    for (const sentence of sentences) {
+
+        const matched = keywords.some(keyword =>
+            sentence.includes(keyword)
+        );
+
+        if (matched && sentence.length >= 10) {
+            results.push(sentence);
+        }
+    }
+
+    return [...new Set(results)].join('\n');
+}
+
+// ==============================
+// 불필요 문장 제거
+// ==============================
+
+function cleanForecastText(text) {
+
+    return text
+
+        .replace(/\(\d+일\)/g, '')
+
+        .replace(/\* 예상 강수량[\s\S]*?(?=\n\n|$)/g, '')
+
+        .replace(/\* 소나기에 의한 예상 강수량[\s\S]*?(?=\n\n|$)/g, '')
+
+        .replace(/\*/g, '')
+
+        .replace(/[ ]{2,}/g, ' ')
+
+        .trim();
+}
+
+// ==============================
+// Bullet 제거
+// ==============================
+
+function removeBullet(text) {
+
+    return text
+        .replace(/○\s*/g, '')
+        .replace(/-\s*/g, '')
+        .replace(/\*\s*/g, '')
+        .trim();
+}
+
+// ==============================
+// 알림문 타입별 텍스트 재작성
+// 새벽/점심: "오늘과 내일 X" → "오늘 X"
+// 오후: 원문 유지
+// ==============================
+
+function applyAlertTypeRewrite(text) {
+    if (!text) return text;
+    if (currentAlertType === '새벽' || currentAlertType === '점심') {
+        text = text.replace(/오늘과\s*내일/g, '오늘');
+        text = text.replace(/오늘\s*및\s*내일/g, '오늘');
+    }
+    return text;
+}
+
+// ==============================
+// 중복 제거
+// ==============================
+
+function uniqueLines(text) {
+
+    const lines = text
+        .split('\n')
+        .map(v => v.trim())
+        .filter(v => v.length > 0);
+
+    return [...new Set(lines)].join('\n');
+}
+
+// ==============================
+// 시간대별 필터
+// ==============================
+
+function filterByAlertType(text) {
+
+    if (!text) return "";
+
+    const sentences = text
+        .split('\n')
+        .map(v => v.trim())
+        .filter(v => v.length > 0);
+
+    // 시점 키워드 판별 헬퍼
+    const hasMorning   = s => s.includes("오전") || s.includes("아침") || s.includes("새벽");
+    const hasAfternoon = s => s.includes("오후") || s.includes("낮")   || s.includes("저녁");
+    const hasToday     = s => s.includes("오늘");
+    const hasTomorrow  = s => s.includes("내일");
+    const hasFuture    = s => s.includes("모레") || s.includes("글피") || s.includes("모레");
+    // 날짜 미명시 일반 문장 (오늘/내일/모레/글피 없음)
+    const isGeneral    = s => !hasToday(s) && !hasTomorrow(s) && !hasFuture(s);
+
+    // ==========================
+    // 새벽 / 점심 알림문
+    // 오늘 오전 + 오늘 오후 정보
+    // ==========================
+    if (currentAlertType === "새벽" || currentAlertType === "점심") {
+        return sentences.filter(s => {
+            // 미래(모레/글피) 제외
+            if (hasFuture(s)) return false;
+            // 내일 언급 문장 제외
+            if (hasTomorrow(s)) return false;
+            // 오늘 명시 → 오전·오후 모두 포함
+            if (hasToday(s)) return true;
+            // 날짜 미명시 일반 문장 포함
+            if (isGeneral(s)) return true;
+            return false;
+        }).join('\n');
+    }
+
+    // ==========================
+    // 오후 알림문
+    // 오늘 오후 + 내일 오전 + 내일 오후 정보
+    // ==========================
+    if (currentAlertType === "오후") {
+        return sentences.filter(s => {
+            // 모레/글피 제외
+            if (hasFuture(s)) return false;
+
+            // 오늘 명시된 문장 → 오후/저녁/낮만 포함 (오전/새벽/아침 제외)
+            if (hasToday(s)) {
+                if (hasMorning(s) && !hasAfternoon(s)) return false;
+                return true;
+            }
+
+            // 내일 문장 → 오전·오후 모두 포함
+            if (hasTomorrow(s)) return true;
+
+            // 날짜 미명시 일반 문장
+            // 오전 시점만 명시된 경우 제외, 그 외 포함
+            if (isGeneral(s)) {
+                if (hasMorning(s) && !hasAfternoon(s)) return false;
+                return true;
+            }
+
+            return false;
+        }).join('\n');
+    }
+
+    return text;
+}
+
+// ==========================
+// 강수 요약 생성
+// ==========================
+
+function summarizeRainInfo(text) {
+
+    if (!text) return "";
+
+    let summary = "";
+
+    // 비 / 소나기 여부
+    const hasRain =
+        text.includes("비") ||
+        text.includes("소나기");
+
+    if (!hasRain) {
+        return "";
+    }
+
+    // 지역 요약
+    let areaText = "";
+
+    if (text.includes("전국")) {
+        areaText = "전국 대부분 지역";
+    }
+
+    else if (text.includes("내륙")) {
+        areaText = "일부 내륙 지역";
+    }
+
+    else {
+        areaText = "일부 지역";
+    }
+
+    // 최대 강수량 추출
+    const mmMatches =
+        [...text.matchAll(/(\d+)\s*~\s*(\d+)mm/g)];
+
+    let maxRain = 0;
+
+    mmMatches.forEach(match => {
+
+        const value =
+            parseInt(match[2]);
+
+        if (value > maxRain) {
+            maxRain = value;
+        }
+    });
+
+    // 문장 생성
+    summary =
+        `${areaText}에 비가 오는 곳이 있겠으며`;
+
+    if (maxRain > 0) {
+
+        summary +=
+            `, 많은 곳은 최대 ${maxRain}mm의 강수량이 예상됩니다.`;
+
+    } else {
+
+        summary += `.`;
+    }
+
+    return summary;
+}
+
+// ==========================
+// 특이사항 (간단 요약)
+// ==========================
+
+function makeSpecialSummary(text) {
+
+    let specialList = [];
+
+    // 강풍 / 돌풍
+    if (
+        text.includes("돌풍") ||
+        text.includes("강풍")
+    ) {
+
+        specialList.push(
+            "돌풍 및 강풍 유의"
+        );
+    }
+
+    // 천둥 번개
+    if (
+        text.includes("천둥") ||
+        text.includes("번개")
+    ) {
+
+        specialList.push(
+            "해상 천둥·번개 유의"
+        );
+    }
+
+    // 안개
+    if (
+        text.includes("안개") ||
+        text.includes("가시거리")
+    ) {
+
+        specialList.push(
+            "해상 안개 및 저시정 유의"
+        );
+    }
+
+    // 너울
+    if (
+        text.includes("너울")
+    ) {
+
+        specialList.push(
+            "해안가 너울 유의"
+        );
+    }
+
+    // 우박
+    if (
+        text.includes("우박")
+    ) {
+
+        specialList.push(
+            "우박 가능성 유의"
+        );
+    }
+
+    // 최대 2줄만
+    return [...new Set(specialList)]
+        .slice(0, 2)
+        .join('\n');
+}
+
+// ==============================
+// 2페이지 해역별 예보 요약
+// ==============================
+
+function buildSecondPageForecast(extraText) {
+
+    if (!extraText.trim()) {
+        return `<해역별 풍속 및 파고, 풍랑특보 현황>\n\n해역별 예보 정보가 없습니다.`;
+    }
+
+    // readCSV에서 이미 구조화된 텍스트로 변환되어 넘어옴
+    // 헤더에 오늘/내일 날짜 정보 포함
+    return `<해역별 풍속 및 파고, 풍랑특보 현황>\n\n` + extraText.trim();
+}
+
+// ==============================
+// 알림문 생성
+// ==============================
+
+function generateAlert() {
+
+    const rawInput = document.getElementById('rawInput').value;
+    const extraForecast = document.getElementById('extraForecast').value;
+
+    const btnIcon = document.getElementById('btnIcon');
+    const btnText = document.getElementById('btnText');
+
+    if (!rawInput.trim() && !extraForecast.trim()) {
+        alert('원문을 입력하거나 CSV 파일을 업로드해주세요.');
+        return;
+    }
+
+    // 로딩 표시
+    if (btnIcon) btnIcon.textContent = "⏳";
+    if (btnText) btnText.textContent = "생성 중...";
+
+    setTimeout(() => {
+        const input = rawInput.trim() ? normalizeText(rawInput) : '';
+
+        // 섹션 추출
+        const rainInfo = findSection(input, "강수 및 유의 사항");
+        const tempInfo = findSection(input, "기온 및 하늘상태");
+        const cautionInfo = findSection(input, "유의 사항");
+        const pressureInfo = findSection(input, "기압계 현황 및 전망");
+
+        // 개황 및 날씨
+        const pressureSentences = extractSentences(pressureInfo, ["고기압", "저기압", "기압골", "영향", "이동"]);
+        const skySentences = extractSentences(tempInfo, ["구름많", "흐리", "맑"]);
+        const rainSentences = summarizeRainInfo(rainInfo);
+
+        let weatherText = `${pressureSentences}\n\n${skySentences}\n\n${rainSentences}`;
+
+        // 정리 및 필터 적용 함수 (먼저 선언)
+        const process = (t) => filterByAlertType(applyAlertTypeRewrite(uniqueLines(cleanForecastText(removeBullet(t)))));
+
+        // 바람 및 파고
+        let waveText = extractSentences(cautionInfo, ["풍랑", "강풍", "돌풍", "풍속", "파고", "물결", "너울", "천둥", "번개"]);
+        waveText = waveText.split('\n').filter(sentence => {
+            return (
+                !sentence.includes("안개") &&
+                !sentence.includes("가시거리") &&
+                !sentence.includes("시정")
+            );
+        }).join('\n');
+
+        // 원문에 바람·파고 내용이 없으면 CSV 집계 문장으로 대체
+        const waveProcessed = process(waveText);
+        const waveFinal = waveProcessed || (csvWindWaveSummary ? csvWindWaveSummary : "정보 없음");
+
+        // 안개 및 시정
+        let fogText = extractSentences(cautionInfo, ["바다 안개", "안개", "가시거리", "시정", "짙은 안개", "해무"]);
+        if (fogText) {
+            const hasSeaFog = fogText.includes("바다 안개");
+            const hasVisibility = fogText.includes("가시거리");
+            let fogSummary = "";
+            if (hasSeaFog) {
+                fogSummary += "서해상과 동해상을 중심으로 바다 안개가 끼는 곳이 있겠습니다. ";
+            }
+            if (hasVisibility) {
+                fogSummary += "일부 해상과 섬 지역에는 가시거리 200m 미만의 짙은 안개가 끼는 곳이 있겠습니다.";
+            }
+            fogText = fogSummary.trim();
+        }
+
+        // 기온 및 조석
+        let tempText = extractSentences(tempInfo, ["기온", "최저기온", "최고기온", "평년"]);
+
+        // 특이사항 (요약 함수 사용)
+        let specialSummary = makeSpecialSummary(input);
+
+        document.getElementById('cat1').value = process(weatherText) || "정보 없음";
+        document.getElementById('cat2').value = waveFinal;
+        document.getElementById('cat3').value = process(fogText)     || "정보 없음";
+        document.getElementById('cat4').value = process(tempText)    || "정보 없음";
+
+        syncToOutput();
+
+        if (btnIcon) btnIcon.textContent = "⚡";
+        if (btnText) btnText.textContent = "알림문 생성";
+        document.getElementById('outputDisplay').scrollIntoView({ behavior: 'smooth' });
+    }, 400);
+}
+
+// ==============================
+// 수정내용 종합 집계 (버튼 호출)
+// ==============================
+
+function rebuildBroadcast() {
+    syncToOutput();
+    const displayArea = document.getElementById('outputDisplay');
+    displayArea.style.boxShadow = "0 0 20px rgba(56, 189, 248, 0.4)";
+    setTimeout(() => { displayArea.style.boxShadow = "none"; }, 500);
+}
+
+// ==============================
+// 출력 동기화 (실시간 편집 반영)
+// ==============================
+
+function syncToOutput() {
+    const now = new Date();
+    const dateText =
+        `${now.getFullYear()}. ` +
+        `${String(now.getMonth() + 1).padStart(2, '0')}. ` +
+        `${String(now.getDate()).padStart(2, '0')}.` +
+        `(${['일','월','화','수','목','금','토'][now.getDay()]})`;
+
+    const weatherVal = document.getElementById('cat1').value;
+    const waveVal    = document.getElementById('cat2').value;
+    const fogVal     = document.getElementById('cat3').value;
+    const tempVal    = document.getElementById('cat4').value;
+
+    const extraForecast = document.getElementById('extraForecast').value;
+    const secondPage    = buildSecondPageForecast(extraForecast);
+
+    // ── 특이사항 키워드 ──
+    const specialKeywords = [
+        '돌풍', '강풍', '천둥', '번개', '너울', '우박',
+        '풍랑경보', '풍랑주의보', '태풍', '해일', '쓰나미'
+    ];
+    function esc(s) {
+        return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+    function highlight(text) {
+        if (!text) return '';
+        let escaped = esc(text);
+        specialKeywords.forEach(kw => {
+            const escapedKw = esc(kw);
+            escaped = escaped.split(escapedKw).join(
+                `<span style="color:#f87171;font-weight:700;">${escapedKw}</span>`
+            );
+        });
+        return escaped;
+    }
+
+    // ── 헤더/푸터 텍스트 ──
+    const headerLine1 = `해양기상정보 알림문(${currentAlertType})`;
+    const headerLine2 = `〈${dateText} 운항상황센터〉`;
+    const headerHtml  = `<div style="margin-bottom:4px;">${esc(headerLine1)}</div><div style="margin-bottom:12px; margin-left:-1em;">${esc(headerLine2)}</div>`;
+
+    const announceRef = csvAnnounceTime ? csvAnnounceTime : '발표 기준 시간';
+    const footer1 = `본 방송은 (${announceRef}) 기상청 해양예보 통보문을 바탕으로 제작되었습니다.`;
+    const footer2 = `한국해양교통안전공단 운항상황센터에서 전해드렸습니다.`;
+    const footerHtml = `<div>${esc(footer1)}</div><div>${esc(footer2)}</div>`;
+
+    const outHeader = document.getElementById('outHeader');
+    if (outHeader) outHeader.innerHTML = headerHtml;
+    const outFooter = document.getElementById('outFooter');
+    if (outFooter) outFooter.innerHTML = footerHtml;
+
+    // ── 편집 블록에 내용 채우기 (이미 편집된 경우 덮어쓰지 않음) ──
+    function setEditBlock(id, text) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        if (document.activeElement === el) return;
+        el.innerHTML = highlight(text);
+    }
+    setEditBlock('edit1', weatherVal);
+    setEditBlock('edit2', waveVal);
+    setEditBlock('edit3', fogVal);
+    setEditBlock('edit4', tempVal);
+    setEditBlock('edit5', secondPage.trim());
+
+    // ── plainText 조합 (편집 블록 현재 텍스트 기준) ──
+    function blockText(id) {
+        const el = document.getElementById(id);
+        return el ? (el.innerText || '') : '';
+    }
+
+    const plainText = [
+        `해양기상정보 알림문(${currentAlertType})`,
+        `〈${dateText} 운항상황센터〉`,
+        ``,
+        `<오늘의 바다 날씨 정보입니다.>`,
+        ``,
+        `(개황, 날씨)`,
+        blockText('edit1'),
+        ``,
+        `(바람, 파고)`,
+        blockText('edit2'),
+        ``,
+        `(안개, 시정)`,
+        blockText('edit3'),
+        ``,
+        `(기온, 조석)`,
+        blockText('edit4'),
+        ``,
+        `[ 2 PAGE ]`,
+        ``,
+        blockText('edit5'),
+        ``,
+        footer1,
+        footer2
+    ].join('\n').replace(/\n{3,}/g, '\n\n').trim();
+
+    const outputEl = document.getElementById('output');
+    if (outputEl) outputEl.value = plainText;
+}
+
+// 편집 블록 변경 시 plainText 동기화
+document.addEventListener('DOMContentLoaded', () => {
+    ['edit1','edit2','edit3','edit4','edit5'].forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.addEventListener('input', () => {
+            const now = new Date();
+            const dateText =
+                `${now.getFullYear()}. ` +
+                `${String(now.getMonth() + 1).padStart(2, '0')}. ` +
+                `${String(now.getDate()).padStart(2, '0')}.` +
+                `(${['일','월','화','수','목','금','토'][now.getDay()]})`;
+            const aRef = csvAnnounceTime ? csvAnnounceTime : '발표 기준 시간';
+            const f1 = `본 방송은 (${aRef}) 기상청 해양예보 통보문을 바탕으로 제작되었습니다.`;
+            const f2 = `한국해양교통안전공단 운항상황센터에서 전해드렸습니다.`;
+            const plainText = [
+                `해양기상정보 알림문(${currentAlertType})`,
+                `〈${dateText} 운항상황센터〉`,``,
+                `<오늘의 바다 날씨 정보입니다.>`,``,
+                `(개황, 날씨)`, blockText('edit1'),``,
+                `(바람, 파고)`, blockText('edit2'),``,
+                `(안개, 시정)`, blockText('edit3'),``,
+                `(기온, 조석)`, blockText('edit4'),``,
+                `[ 2 PAGE ]`,``,
+                blockText('edit5'),``,
+                f1, f2
+            ].join('\n').replace(/\n{3,}/g, '\n\n').trim();
+            const outputEl = document.getElementById('output');
+            if (outputEl) outputEl.value = plainText;
+        });
+    });
+});
+
+// ==============================
+// CSV 파일 읽기 + 구조적 파싱
+// ==============================
+
+function readCSV(input) {
+    const file = input.files[0];
+    if (!file) return;
+
+    const tryRead = (encoding) => {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (e) => resolve(e.target.result);
+            reader.onerror = (e) => reject(e);
+            reader.readAsText(file, encoding);
+        });
+    };
+
+    tryRead('utf-8')
+        .then(text => {
+            if (text.includes('\uFFFD')) return tryRead('euc-kr');
+            return text;
+        })
+        .then(parseCSVStructure)
+        .catch(() => tryRead('euc-kr').then(parseCSVStructure))
+        .catch(err => {
+            console.error('CSV Read Error:', err);
+            alert('CSV 파일을 읽는 중 오류가 발생했습니다.');
+        });
+
+    function parseCSVStructure(text) {
+        if (!text) return;
+
+        // ── CSV 파싱 ──
+        function parseCSVLine(line) {
+            const result = [];
+            let cur = '', inQuote = false;
+            for (let i = 0; i < line.length; i++) {
+                const ch = line[i];
+                if (ch === '"') { inQuote = !inQuote; }
+                else if (ch === ',' && !inQuote) { result.push(cur.trim()); cur = ''; }
+                else { cur += ch; }
+            }
+            result.push(cur.trim());
+            return result;
+        }
+
+        const rawLines = text.replace(/\r/g, '').split('\n').filter(l => l.trim());
+        const rows = rawLines.map(parseCSVLine);
+
+        if (rows.length < 4) { alert('CSV 형식이 올바르지 않습니다.'); return; }
+
+        // ── 발표 시각에서 오늘/내일 날짜 추출 ──
+        const headerStr = rows[0][0] || '';
+        const dateMatch = headerStr.match(/(\d{4})\.(\d{2})\.(\d{2})/);
+        const timeMatch = headerStr.match(/(\d{2}:\d{2})/);
+        let todayDay = null, tomorrowDay = null;
+        if (dateMatch) {
+            const d = new Date(+dateMatch[1], +dateMatch[2]-1, +dateMatch[3]);
+            const t = new Date(d); t.setDate(d.getDate()+1);
+            todayDay    = String(d.getDate()).padStart(2,'0') + '일';
+            tomorrowDay = String(t.getDate()).padStart(2,'0') + '일';
+            // 전역 발표 시각 저장: "2026.06.09. 17:00"
+            csvAnnounceTime = `${dateMatch[1]}.${dateMatch[2]}.${dateMatch[3]}. ${timeMatch ? timeMatch[1] : ''}`.trim();
+        }
+
+        // ── 날짜/시간 컬럼 매핑 ──
+        const dateRow = rows[1] || [];
+        const timeRow = rows[2] || [];
+        const typeRow = rows[3] || [];
+
+        const dateCols = [];
+        for (let c = 0; c < dateRow.length; c++) {
+            if (dateRow[c] && /\d{2}일/.test(dateRow[c])) {
+                dateCols.push({ label: dateRow[c].match(/(\d{2}일)/)[1], col: c });
+            }
+        }
+        const timeCols = {};
+        for (let c = 0; c < timeRow.length; c++) {
+            if (timeRow[c] === '오전' || timeRow[c] === '오후') timeCols[c] = timeRow[c];
+        }
+
+        // ── 유효 컬럼 결정 ──
+        const validCols = new Set();
+        dateCols.forEach(({ label, col }) => {
+            const isToday    = todayDay    && label === todayDay;
+            const isTomorrow = tomorrowDay && label === tomorrowDay;
+            const nextCol    = (dateCols.find(d => d.col > col) || {}).col || col + 4;
+            for (let c = col; c < nextCol; c++) {
+                const tp = timeCols[c];
+                if (currentAlertType === '새벽' || currentAlertType === '점심') {
+                    if (isToday) validCols.add(c);
+                } else if (currentAlertType === '오후') {
+                    if (isToday && tp === '오후') validCols.add(c);
+                    if (isTomorrow)               validCols.add(c);
+                }
+            }
+        });
+        const useAll = validCols.size === 0;
+
+        // ── 해역 그룹 매핑 ──
+        // 최종 출력: 서해(중부/남부), 남해(서부/동부), 동해(중부/남부), 제주(앞바다/먼바다)
+        // col1 이름으로 매핑
+        function classifyArea(areaName) {
+            const n = areaName;
+            // 서해
+            if (n.includes('서해중부') || n.includes('인천') || n.includes('경기') || n.includes('충남'))
+                return { sea:'서해', sub:'중부' };
+            if (n.includes('서해남부') || n.includes('전북') || n.includes('전남북부서해') ||
+                n.includes('전남중부서해') || n.includes('전남남부서해'))
+                return { sea:'서해', sub:'남부' };
+            if (n.includes('서해북부'))
+                return { sea:'서해', sub:'중부' }; // 북부는 중부에 합산
+            // 남해
+            if (n.includes('남해서부') || n.includes('전남서부남해') || n.includes('전남동부남해') ||
+                n.includes('남해서부서쪽') || n.includes('남해서부동쪽'))
+                return { sea:'남해', sub:'서부' };
+            if (n.includes('남해동부') || n.includes('경남') || n.includes('부산') || n.includes('거제') ||
+                n.includes('남해동부안쪽') || n.includes('남해동부바깥'))
+                return { sea:'남해', sub:'동부' };
+            // 동해
+            if (n.includes('동해중부') || n.includes('강원'))
+                return { sea:'동해', sub:'중부' };
+            if (n.includes('동해남부') || n.includes('울산') || n.includes('경북'))
+                return { sea:'동해', sub:'남부' };
+            if (n.includes('동해북부'))
+                return { sea:'동해', sub:'중부' }; // 북부는 중부에 합산
+            // 제주
+            if (n.includes('제주도') && (n.includes('남서쪽') || n.includes('남동쪽') ||
+                n.includes('남쪽') || n.includes('먼바다')))
+                return { sea:'제주', sub:'먼바다' };
+            if (n.includes('제주도'))
+                return { sea:'제주', sub:'앞바다' };
+            // 제외: 대화퇴, 동중국해, 규슈, 연해주
+            return null;
+        }
+
+        // 날씨 불량 순위 (높을수록 나쁜 날씨)
+        const weatherRank = {
+            '흐리고 비': 9, '흐리고 가끔 비': 8, '흐리고 한때 비': 8,
+            '구름많고 비': 7, '구름많고 가끔 비': 6, '구름많고 한때 비': 5,
+            '흐림': 4, '구름많음': 3, '맑음': 1
+        };
+        function rankWeather(w) {
+            for (const [key, rank] of Object.entries(weatherRank)) {
+                if (w.includes(key.replace('흐리고 ','').replace('구름많고 ',''))) {
+                    if (w.includes('흐리고') && key.includes('흐리고')) return rank;
+                    if (w.includes('구름많고') && key.includes('구름많고')) return rank;
+                    if (!w.includes('흐리고') && !w.includes('구름많고')) return rank;
+                }
+            }
+            // 직접 매치
+            return weatherRank[w] || 0;
+        }
+        function getBadWeather(weathers) {
+            if (!weathers.length) return '정보없음';
+            return weathers.reduce((best, w) => {
+                const brank = Object.entries(weatherRank).find(([k])=>best.includes(k.replace(/흐리고 |구름많고 /,'')))?.[1] || 0;
+                const wrank = rankWeather(w);
+                return wrank > brank ? w : best;
+            }, weathers[0]);
+        }
+
+        // 수집 구조: { "서해_중부": { winds:[], waves:[], weathers:[] }, ... }
+        const seaGroups = {};
+        function getGroup(sea, sub) {
+            const key = `${sea}_${sub}`;
+            if (!seaGroups[key]) seaGroups[key] = { sea, sub, winds:[], waves:[], weathers:[], windDirs:[] };
+            return seaGroups[key];
+        }
+
+        let lastArea = null;
+        for (let r = 4; r < rows.length; r++) {
+            const row = rows[r];
+            if (!row || row.every(v => !v)) continue;
+
+            // col1이 있으면 해역명 행, 없으면 날씨 텍스트 행
+            const areaName = row[1] ? row[1].trim() : null;
+
+            if (areaName) {
+                lastArea = classifyArea(areaName);
+                if (!lastArea) continue;
+
+                const grp = getGroup(lastArea.sea, lastArea.sub);
+
+                for (let c = 2; c < row.length; c++) {
+                    if (!useAll && !validCols.has(c)) continue;
+                    if (typeRow[c] !== '날씨' && typeRow[c] !== '파고') continue;
+
+                    const cell = row[c] || '';
+                    if (typeRow[c] === '날씨') {
+                        // 풍향/풍속: "SW-W / 3-6"
+                        const wm = cell.match(/^([A-Z\-]+)\s*\/\s*(\d+)-(\d+)$/);
+                        if (wm) {
+                            grp.windDirs.push(wm[1]);
+                            grp.winds.push(parseInt(wm[2]), parseInt(wm[3]));
+                        }
+                    }
+                    if (typeRow[c] === '파고') {
+                        const pm = cell.match(/(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)/);
+                        const ps = cell.match(/^(\d+(?:\.\d+)?)$/);
+                        if (pm) { grp.waves.push(parseFloat(pm[1]), parseFloat(pm[2])); }
+                        else if (ps) { grp.waves.push(parseFloat(ps[1])); }
+                    }
+                }
+            } else {
+                // 날씨 텍스트 행
+                if (!lastArea) continue;
+                const grp = getGroup(lastArea.sea, lastArea.sub);
+                for (let c = 2; c < row.length; c++) {
+                    if (!useAll && !validCols.has(c)) continue;
+                    if (typeRow[c] !== '날씨') continue;
+                    const cell = row[c] || '';
+                    if (cell && !/^\d/.test(cell)) grp.weathers.push(cell);
+                }
+            }
+        }
+
+        // ── 출력 조립 ──
+        // 풍향: 최대 풍속 시점의 풍향
+        function getDominantDir(windDirs, winds) {
+            if (!windDirs.length) return '-';
+            // 최대 풍속 인덱스 (winds는 min/max 쌍이므로 max는 홀수 인덱스)
+            let maxVal = 0, maxIdx = 0;
+            for (let i = 1; i < winds.length; i += 2) {
+                if (winds[i] > maxVal) { maxVal = winds[i]; maxIdx = Math.floor(i/2); }
+            }
+            return windDirs[maxIdx] || windDirs[windDirs.length-1];
+        }
+
+        const ORDER = [
+            ['서해', '중부'], ['서해', '남부'],
+            ['남해', '서부'], ['남해', '동부'],
+            ['동해', '중부'], ['동해', '남부'],
+            ['제주', '앞바다'], ['제주', '먼바다']
+        ];
+
+        let output = '';
+
+        let currentSea = '';
+        ORDER.forEach(([sea, sub]) => {
+            const grp = seaGroups[`${sea}_${sub}`];
+            if (!grp) return;
+
+            if (sea !== currentSea) {
+                if (currentSea !== '') output += '\n';
+                output += `◆ ${sea}\n`;
+                currentSea = sea;
+            }
+
+            const windMax  = grp.winds.length  ? Math.max(...grp.winds)  : null;
+            const waveMin  = grp.waves.length  ? Math.min(...grp.waves)  : null;
+            const waveMax  = grp.waves.length  ? Math.max(...grp.waves)  : null;
+            const weather  = getBadWeather(grp.weathers);
+
+            let warning = '';
+            if (windMax >= 21) warning = ' ⚠풍랑경보';
+            else if (windMax >= 14) warning = ' ⚠풍랑주의보';
+
+            const windStr  = windMax  !== null ? `풍속 최대 ${windMax}m/s` : '';
+            const waveStr  = waveMax  !== null ? `파고 ${waveMin.toFixed(1)}~${waveMax.toFixed(1)}m` : '';
+            const wthStr   = `날씨 ${weather}`;
+
+            output += `  [${sub}] ${[windStr, waveStr, wthStr].filter(Boolean).join(' / ')}${warning}\n`;
+        });
+
+        // ── 전체 해역 풍속·파고 집계 (바람파고 원문 없을 때 사용) ──
+        const allWinds = [], allWaves = [];
+        Object.values(seaGroups).forEach(grp => {
+            allWinds.push(...grp.winds);
+            allWaves.push(...grp.waves);
+        });
+        if (allWinds.length || allWaves.length) {
+            const wMin = allWinds.length ? Math.min(...allWinds) : null;
+            const wMax = allWinds.length ? Math.max(...allWinds) : null;
+            const pMin = allWaves.length ? Math.min(...allWaves) : null;
+            const pMax = allWaves.length ? Math.max(...allWaves) : null;
+            const timePrefix = (currentAlertType === '오후') ? '오늘 오후와 내일은' : '오늘은';
+            csvWindWaveSummary =
+                `${timePrefix} 바람은 ${wMin !== null ? wMin + '~' : ''}${wMax}m/s로 불겠으며, 파고는 ${pMin !== null ? pMin.toFixed(1) + '~' : ''}${pMax !== null ? pMax.toFixed(1) : '?'}m로 일겠습니다.`;
+        } else {
+            csvWindWaveSummary = null;
+        }
+
+        document.getElementById('extraForecast').value = output;
+
+        // CSV 로드 후 원문이 있으면 알림문 자동 생성, 없으면 syncToOutput만
+        const hasRawInput = document.getElementById('rawInput').value.trim();
+        if (hasRawInput) {
+            generateAlert();
+        } else {
+            syncToOutput();
+        }
+        alert(`CSV 로드 완료\n오늘: ${todayDay||'미확인'} / 내일: ${tomorrowDay||'미확인'}\n알림문 타입: ${currentAlertType}`);
+    }
+}
+
+// ==============================
+// 초기화
+// ==============================
+
+function clearInput() {
+    csvWindWaveSummary = null;
+    csvAnnounceTime = '';
+    document.getElementById('rawInput').value = '';
+    document.getElementById('extraForecast').value = '';
+    document.getElementById('cat1').value = '';
+    document.getElementById('cat2').value = '';
+    document.getElementById('cat3').value = '';
+    document.getElementById('cat4').value = '';
+    document.getElementById('output').value = '';
+
+    // CSV 파일 input 초기화 (같은 파일 재업로드 가능하게)
+    const csvInput = document.getElementById('csvFileInput');
+    if (csvInput) csvInput.value = '';
+
+    // edit 블록 내용 초기화 (DOM 구조는 유지)
+    ['edit1','edit2','edit3','edit4','edit5'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.innerHTML = '';
+    });
+    const outHeader = document.getElementById('outHeader');
+    const outFooter = document.getElementById('outFooter');
+    if (outHeader) outHeader.innerHTML = '';
+    if (outFooter) outFooter.innerHTML = '';
+}
+
+// ==============================
+// 복사
+// ==============================
+
+function copyToClipboard() {
+    const output = document.getElementById('output').value;
+    navigator.clipboard.writeText(output)
+        .then(() => alert('복사되었습니다.'))
+        .catch(err => console.error(err));
+}
+
+// ==============================
+// 2페이지 PDF 저장
+// ==============================
+
+async function savePDF() {
+
+    const { jsPDF } = window.jspdf;
+
+    try {
+        const doc = new jsPDF({
+            orientation: 'portrait',
+            unit: 'mm',
+            format: 'a4'
+        });
+
+        // 폰트: 로컬 파일 우선, 없으면 기본 폰트로 진행
+        try {
+            const fontRes = await fetch('./fonts/NotoSansKR-Regular.ttf');
+            if (fontRes.ok) {
+                const font = await fontRes.arrayBuffer();
+                const fontBase64 = btoa(
+                    new Uint8Array(font).reduce((data, byte) => data + String.fromCharCode(byte), '')
+                );
+                doc.addFileToVFS('NotoSansKR-Regular.ttf', fontBase64);
+                doc.addFont('NotoSansKR-Regular.ttf', 'NotoSansKR', 'normal');
+                doc.setFont('NotoSansKR');
+            }
+            // 폰트 없어도 계속 진행 (한글 깨질 수 있지만 PDF는 생성됨)
+        } catch (fontErr) {
+            console.warn('한글 폰트를 불러올 수 없습니다. 기본 폰트로 저장합니다.');
+        }
+
+        // 전체 텍스트
+        const fullText =
+            document.getElementById('output').value;
+
+        // 페이지 구분
+        const pages =
+            fullText.split('[ 2 PAGE ]');
+
+        const margin = 15;
+        const pageHeight = doc.internal.pageSize.height;
+        const maxWidth = 180;
+        const lineHeight = 6;
+
+        // 텍스트 출력 도우미 (페이지 넘김 지원)
+        function renderText(text, startX, startY, fontSize) {
+            doc.setFontSize(fontSize);
+            const lines = doc.splitTextToSize(text, maxWidth);
+            let currentY = startY;
+
+            lines.forEach(line => {
+                if (currentY > pageHeight - margin) {
+                    doc.addPage();
+                    currentY = margin;
+                }
+                doc.text(line, startX, currentY);
+                currentY += lineHeight;
+            });
+            return currentY;
+        }
+
+        // ==========================
+        // 1페이지
+        // ==========================
+        renderText(pages[0].trim(), 10, 15, 11);
+
+        // ==========================
+        // 2페이지
+        // ==========================
+        if (pages.length > 1 && pages[1].trim()) {
+            doc.addPage();
+            
+            // 2페이지 제목
+            doc.setFontSize(14);
+            doc.text("해역별 상세 예보 요약", 10, 15);
+            
+            // 2페이지 내용
+            renderText(pages[1].trim(), 10, 25, 11);
+        }
+
+        // 저장 (파일명 동적 처리)
+        const now = new Date();
+        const dateStr = now.getFullYear().toString().substring(2) + 
+                        String(now.getMonth() + 1).padStart(2, '0') + 
+                        String(now.getDate()).padStart(2, '0');
+
+        doc.save(
+            `(${dateStr}_${currentAlertType})해양기상정보알림문.pdf`
+        );
+    } catch (error) {
+        console.error('PDF generation error:', error);
+        alert('PDF 저장 중 오류가 발생했습니다.');
+    }
+}
+
+// ==============================
+// 프린트 미리보기 열기
+// ==============================
+
+function openPrintPreview() {
+    const plainText = document.getElementById('output').value;
+    if (!plainText.trim()) {
+        alert('먼저 알림문을 생성해주세요.');
+        return;
+    }
+
+    const specialKeywords = [
+        '돌풍', '강풍', '천둥', '번개', '너울', '우박',
+        '풍랑경보', '풍랑주의보', '태풍', '해일', '쓰나미'
+    ];
+    function escHtml(s) {
+        return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+    function highlight(text) {
+        let escaped = escHtml(text);
+        specialKeywords.forEach(kw => {
+            escaped = escaped.split(escHtml(kw)).join(
+                `<span style="color:#dc2626;font-weight:700;">${escHtml(kw)}</span>`
+            );
+        });
+        return escaped;
+    }
+
+    const parts = plainText.split('[ 2 PAGE ]');
+    const page1 = parts[0] ? highlight(parts[0].trim()) : '';
+    const page2 = parts[1] ? highlight(parts[1].trim()) : '';
+
+    let html = page1;
+    if (page2) {
+        html += `\n\n` + page2;
+    }
+
+    document.getElementById('printPreviewContent').innerHTML = html;
+    document.getElementById('printModal').style.display = 'flex';
+}
+
+function closePrintPreview() {
+    document.getElementById('printModal').style.display = 'none';
+}
+
+// ESC 키로 닫기
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closePrintPreview();
+});
+
+// ==============================
+// PNG 저장
+// ==============================
+
+async function savePNG() {
+    const area = document.getElementById('printPreviewContent');
+    if (!area.innerText.trim()) { alert('먼저 프린트 미리보기를 열어주세요.'); return; }
+
+    try {
+        // 전체 높이 캡처를 위해 스크롤 없이 전체 렌더
+        const fullHeight = area.scrollHeight;
+        const fullWidth  = area.scrollWidth;
+
+        const canvas = await html2canvas(area, {
+            scale: 2,
+            backgroundColor: '#ffffff',
+            useCORS: true,
+            width: fullWidth,
+            height: fullHeight,
+            windowWidth: fullWidth,
+            windowHeight: fullHeight,
+            scrollX: 0,
+            scrollY: 0
+        });
+
+        const now = new Date();
+        const dateStr = now.getFullYear().toString().slice(2) +
+            String(now.getMonth()+1).padStart(2,'0') +
+            String(now.getDate()).padStart(2,'0');
+        const link = document.createElement('a');
+        link.download = `(${dateStr}_${currentAlertType})해양기상정보알림문.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+    } catch(e) {
+        console.error(e);
+        alert('PNG 저장 중 오류가 발생했습니다.');
+    }
+}
+
+// ==============================
+// 한글 저장 (.doc)
+// ==============================
+
+function saveHWP() {
+    const text = document.getElementById('output').value;
+    if (!text.trim()) { alert('먼저 알림문을 생성해주세요.'); return; }
+
+    const now = new Date();
+    const dateStr = now.getFullYear().toString().slice(2) +
+        String(now.getMonth()+1).padStart(2,'0') +
+        String(now.getDate()).padStart(2,'0');
+
+    const blob = new Blob([text], { type: 'application/msword;charset=utf-8' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `(${dateStr}_${currentAlertType})해양기상정보알림문.doc`;
+    link.click();
+}
+
+</script>
+
+<!-- ==============================
+     프린트 미리보기 모달
+     ============================== -->
+<div id="printModal" style="
+    display: none;
+    position: fixed; inset: 0; z-index: 9999;
+    background: rgba(0,0,0,0.75);
+    backdrop-filter: blur(4px);
+    align-items: center; justify-content: center;
+">
+    <div style="
+        background: #0f172a;
+        border: 1px solid rgba(56,189,248,0.3);
+        border-radius: 16px;
+        width: min(860px, 95vw);
+        max-height: 92vh;
+        display: flex; flex-direction: column;
+        overflow: hidden;
+        box-shadow: 0 0 60px rgba(56,189,248,0.15);
+    ">
+        <!-- 모달 헤더 -->
+        <div style="
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 16px 24px;
+            border-bottom: 1px solid rgba(56,189,248,0.15);
+            flex-shrink: 0;
+        ">
+            <span style="color: var(--accent); font-weight: 700; font-size: 1rem;">🖨️ 프린트 미리보기</span>
+            <button onclick="closePrintPreview()" style="
+                background: none; border: none; color: #94a3b8;
+                font-size: 1.3rem; cursor: pointer; line-height: 1;
+            ">✕</button>
+        </div>
+
+        <!-- 미리보기 본문 (A4 시뮬레이션) -->
+        <div style="flex: 1; overflow-y: auto; padding: 24px; background: #1e293b;">
+            <div id="printPreviewContent" style="
+                background: white; color: #111;
+                width: 794px; min-height: 1123px;
+                margin: 0 auto;
+                padding: 60px 70px;
+                font-family: 'Malgun Gothic', '맑은 고딕', sans-serif;
+                font-size: 13px; line-height: 1.9;
+                white-space: pre-wrap;
+                box-shadow: 0 4px 32px rgba(0,0,0,0.4);
+                border-radius: 4px;
+                box-sizing: border-box;
+            "></div>
+        </div>
+
+        <!-- 저장 버튼 -->
+        <div style="
+            display: flex; gap: 12px; padding: 16px 24px;
+            border-top: 1px solid rgba(56,189,248,0.15);
+            flex-shrink: 0; background: #0f172a;
+        ">
+            <button onclick="savePNG()" style="
+                flex: 1; background: #10b981; color: white;
+                padding: 12px; font-size: 0.9rem; border-radius: 8px;
+                border: none; cursor: pointer; font-weight: 600;
+            ">🖼️ PNG로 저장</button>
+            <button onclick="saveHWP()" style="
+                flex: 1; background: #3b82f6; color: white;
+                padding: 12px; font-size: 0.9rem; border-radius: 8px;
+                border: none; cursor: pointer; font-weight: 600;
+            ">📄 한글(.doc)로 저장</button>
+            <button onclick="window.print()" style="
+                flex: 1; background: #6366f1; color: white;
+                padding: 12px; font-size: 0.9rem; border-radius: 8px;
+                border: none; cursor: pointer; font-weight: 600;
+            ">🖨️ 인쇄</button>
+        </div>
+    </div>
+</div>
+
+<style>
+@media print {
+    body > *:not(#printModal) { display: none !important; }
+    #printModal {
+        display: flex !important;
+        position: static !important;
+        background: none !important;
+        backdrop-filter: none !important;
+    }
+    #printModal > div {
+        border: none !important;
+        box-shadow: none !important;
+        width: 100% !important;
+        max-height: none !important;
+    }
+    #printModal > div > div:first-child,
+    #printModal > div > div:last-child { display: none !important; }
+    #printPreviewContent {
+        box-shadow: none !important;
+        width: 100% !important;
+        padding: 0 !important;
+    }
+}
+</style>
+
+<!-- ==============================
+     이메일 발송 모달
+     ============================== -->
+<div id="emailModal" style="
+    display: none; position: fixed; inset: 0; z-index: 9999;
+    background: rgba(0,0,0,0.75); backdrop-filter: blur(4px);
+    align-items: center; justify-content: center;
+">
+    <div style="
+        background: #0f172a; border: 1px solid rgba(124,58,237,0.4);
+        border-radius: 16px; width: min(680px, 95vw); max-height: 92vh;
+        display: flex; flex-direction: column; overflow: hidden;
+        box-shadow: 0 0 60px rgba(124,58,237,0.2);
+    ">
+        <!-- 헤더 -->
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:16px 24px; border-bottom:1px solid rgba(124,58,237,0.2); flex-shrink:0;">
+            <div style="display:flex; align-items:center; gap:12px;">
+                <span style="color:#a78bfa; font-weight:700; font-size:1rem;">✉️ 이메일 발송</span>
+                <span id="ejsStatusBadge" style="font-size:0.78rem; color:#fbbf24;">⚠️ EmailJS 미설정</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:8px;">
+                <button onclick="openEjsConfig()" style="background:rgba(124,58,237,0.2); border:1px solid rgba(124,58,237,0.35); color:#a78bfa; padding:5px 12px; border-radius:6px; font-size:0.78rem; cursor:pointer;">⚙️ EmailJS 설정</button>
+                <button onclick="closeEmailModal()" style="background:none; border:none; color:#94a3b8; font-size:1.3rem; cursor:pointer; line-height:1;">✕</button>
+            </div>
+        </div>
+
+        <!-- 본문 -->
+        <div style="flex:1; overflow-y:auto; padding:20px 24px; display:flex; flex-direction:column; gap:16px;">
+
+            <!-- 수신자 관리 -->
+            <div>
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+                    <label style="color:#a78bfa; font-size:0.82rem; letter-spacing:0.05em;">수신자</label>
+                    <button onclick="openRecipientManager()" style="background:rgba(124,58,237,0.2); border:1px solid rgba(124,58,237,0.3); color:#a78bfa; padding:4px 10px; border-radius:6px; font-size:0.78rem; cursor:pointer;">+ 수신자 관리</button>
+                </div>
+                <div id="recipientTags" style="
+                    min-height:40px; padding:8px; border-radius:8px;
+                    border:1px solid rgba(124,58,237,0.25); background:rgba(255,255,255,0.03);
+                    display:flex; flex-wrap:wrap; gap:6px; align-items:center;
+                ">
+                    <span style="color:#475569; font-size:0.82rem;" id="noRecipientMsg">수신자를 추가하세요</span>
+                </div>
+            </div>
+
+            <!-- 제목 -->
+            <div>
+                <label style="color:#a78bfa; font-size:0.82rem; letter-spacing:0.05em; display:block; margin-bottom:6px;">제목</label>
+                <input id="emailSubject" type="text" style="
+                    width:100%; padding:10px 12px; border-radius:8px;
+                    border:1px solid rgba(124,58,237,0.25); background:rgba(255,255,255,0.04);
+                    color:#e2e8f0; font-size:0.9rem; outline:none; box-sizing:border-box;
+                " />
+            </div>
+
+            <!-- 본문 미리보기 -->
+            <div style="flex:1;">
+                <label style="color:#a78bfa; font-size:0.82rem; letter-spacing:0.05em; display:block; margin-bottom:6px;">본문</label>
+                <textarea id="emailBody" style="
+                    width:100%; height:240px; padding:12px; border-radius:8px;
+                    border:1px solid rgba(124,58,237,0.25); background:rgba(255,255,255,0.04);
+                    color:#e2e8f0; font-size:0.85rem; line-height:1.7; resize:vertical;
+                    outline:none; font-family:'Fira Code','Courier New',monospace; box-sizing:border-box;
+                "></textarea>
+            </div>
+
+        </div>
+
+        <!-- 발송 버튼 -->
+        <div style="display:flex; gap:12px; padding:16px 24px; border-top:1px solid rgba(124,58,237,0.2); flex-shrink:0; background:#0f172a;">
+            <button id="sendEmailBtn" onclick="sendEmail()" style="flex:1; background:#7c3aed; color:white; padding:12px; font-size:0.95rem; border-radius:8px; border:none; cursor:pointer; font-weight:600;">
+                ✉️ 발송
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- 수신자 관리 서브 모달 -->
+<div id="recipientManagerModal" style="
+    display:none; position:fixed; inset:0; z-index:10000;
+    background:rgba(0,0,0,0.6); backdrop-filter:blur(2px);
+    align-items:center; justify-content:center;
+">
+    <div style="
+        background:#1e293b; border:1px solid rgba(124,58,237,0.4);
+        border-radius:14px; width:min(480px,92vw); max-height:80vh;
+        display:flex; flex-direction:column; overflow:hidden;
+        box-shadow:0 0 40px rgba(124,58,237,0.15);
+    ">
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:14px 20px; border-bottom:1px solid rgba(124,58,237,0.2);">
+            <span style="color:#a78bfa; font-weight:700;">수신자 관리</span>
+            <button onclick="closeRecipientManager()" style="background:none; border:none; color:#94a3b8; font-size:1.2rem; cursor:pointer;">✕</button>
+        </div>
+        <div style="flex:1; overflow-y:auto; padding:16px 20px; display:flex; flex-direction:column; gap:12px;">
+            <!-- 추가 폼 -->
+            <div style="display:flex; gap:8px;">
+                <input id="newRecipientName" type="text" placeholder="이름" style="
+                    flex:1; padding:8px 10px; border-radius:7px;
+                    border:1px solid rgba(124,58,237,0.25); background:rgba(255,255,255,0.05);
+                    color:#e2e8f0; font-size:0.85rem; outline:none;
+                "/>
+                <input id="newRecipientEmail" type="email" placeholder="이메일 주소" style="
+                    flex:2; padding:8px 10px; border-radius:7px;
+                    border:1px solid rgba(124,58,237,0.25); background:rgba(255,255,255,0.05);
+                    color:#e2e8f0; font-size:0.85rem; outline:none;
+                "/>
+                <button onclick="addRecipient()" style="
+                    background:#7c3aed; color:white; padding:8px 14px;
+                    border-radius:7px; border:none; cursor:pointer; font-size:0.85rem;
+                ">추가</button>
+            </div>
+            <!-- 수신자 목록 -->
+            <div id="recipientList" style="display:flex; flex-direction:column; gap:6px;"></div>
+        </div>
+        <div style="padding:14px 20px; border-top:1px solid rgba(124,58,237,0.2); display:flex; justify-content:flex-end;">
+            <button onclick="closeRecipientManager()" style="background:#7c3aed; color:white; padding:9px 20px; border-radius:8px; border:none; cursor:pointer; font-weight:600;">확인</button>
+        </div>
+    </div>
+</div>
+
+<style>
+.recipient-tag {
+    display: inline-flex; align-items: center; gap: 5px;
+    background: rgba(124,58,237,0.2); border: 1px solid rgba(124,58,237,0.35);
+    border-radius: 20px; padding: 3px 10px; font-size: 0.8rem; color: #c4b5fd;
+}
+.recipient-tag button {
+    background: none; border: none; color: #a78bfa; cursor: pointer;
+    font-size: 0.9rem; line-height: 1; padding: 0; margin-left: 2px;
+}
+</style>
+
+<!-- EmailJS 설정 모달 -->
+<div id="ejsConfigModal" style="
+    display:none; position:fixed; inset:0; z-index:10001;
+    background:rgba(0,0,0,0.65); backdrop-filter:blur(2px);
+    align-items:center; justify-content:center;
+">
+    <div style="
+        background:#1e293b; border:1px solid rgba(124,58,237,0.5);
+        border-radius:14px; width:min(460px,92vw);
+        display:flex; flex-direction:column; overflow:hidden;
+        box-shadow:0 0 40px rgba(124,58,237,0.2);
+    ">
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:14px 20px; border-bottom:1px solid rgba(124,58,237,0.2);">
+            <span style="color:#a78bfa; font-weight:700;">⚙️ EmailJS 설정</span>
+            <button onclick="closeEjsConfig()" style="background:none; border:none; color:#94a3b8; font-size:1.2rem; cursor:pointer;">✕</button>
+        </div>
+        <div style="padding:20px; display:flex; flex-direction:column; gap:14px;">
+            <div style="background:rgba(251,191,36,0.08); border:1px solid rgba(251,191,36,0.2); border-radius:8px; padding:12px; font-size:0.82rem; color:#fcd34d; line-height:1.6;">
+                <strong>설정 방법</strong><br>
+                1. <a href="https://www.emailjs.com" target="_blank" style="color:#a78bfa;">emailjs.com</a> 가입 → 무료 월 200건<br>
+                2. Email Services에서 Gmail/Outlook 연동 → <strong>Service ID</strong> 복사<br>
+                3. Email Templates에서 템플릿 생성 → <strong>Template ID</strong> 복사<br>
+                &nbsp;&nbsp;&nbsp;(템플릿 변수: <code>{{to_name}}</code>, <code>{{subject}}</code>, <code>{{message}}</code>)<br>
+                4. Account → <strong>Public Key</strong> 복사
+            </div>
+            <div>
+                <label style="color:#94a3b8; font-size:0.82rem; display:block; margin-bottom:5px;">Service ID</label>
+                <input id="ejsServiceId" type="text" placeholder="service_xxxxxxx" style="width:100%; padding:9px 12px; border-radius:7px; border:1px solid rgba(124,58,237,0.3); background:rgba(255,255,255,0.04); color:#e2e8f0; font-size:0.88rem; outline:none; box-sizing:border-box;">
+            </div>
+            <div>
+                <label style="color:#94a3b8; font-size:0.82rem; display:block; margin-bottom:5px;">Template ID</label>
+                <input id="ejsTemplateId" type="text" placeholder="template_xxxxxxx" style="width:100%; padding:9px 12px; border-radius:7px; border:1px solid rgba(124,58,237,0.3); background:rgba(255,255,255,0.04); color:#e2e8f0; font-size:0.88rem; outline:none; box-sizing:border-box;">
+            </div>
+            <div>
+                <label style="color:#94a3b8; font-size:0.82rem; display:block; margin-bottom:5px;">Public Key</label>
+                <input id="ejsPublicKey" type="text" placeholder="xxxxxxxxxxxxxxxxxxxxxx" style="width:100%; padding:9px 12px; border-radius:7px; border:1px solid rgba(124,58,237,0.3); background:rgba(255,255,255,0.04); color:#e2e8f0; font-size:0.88rem; outline:none; box-sizing:border-box;">
+            </div>
+        </div>
+        <div style="padding:14px 20px; border-top:1px solid rgba(124,58,237,0.2); display:flex; gap:10px; justify-content:flex-end;">
+            <button onclick="closeEjsConfig()" style="background:rgba(255,255,255,0.05); color:#94a3b8; padding:9px 18px; border-radius:8px; border:1px solid rgba(255,255,255,0.1); cursor:pointer;">취소</button>
+            <button onclick="saveEjsConfig(); closeEjsConfig(); openEmailModal();" style="background:#7c3aed; color:white; padding:9px 20px; border-radius:8px; border:none; cursor:pointer; font-weight:600;">저장</button>
+        </div>
+    </div>
+</div>
+
+<!-- EmailJS SDK -->
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+
+<script>
+// ==============================
+// EmailJS 설정 (로컬 저장)
+// ==============================
+let ejsConfig = JSON.parse(localStorage.getItem('ejsConfig') || '{}');
+// { serviceId, templateId, publicKey }
+
+function saveEjsConfig() {
+    ejsConfig = {
+        serviceId:  document.getElementById('ejsServiceId').value.trim(),
+        templateId: document.getElementById('ejsTemplateId').value.trim(),
+        publicKey:  document.getElementById('ejsPublicKey').value.trim(),
+    };
+    localStorage.setItem('ejsConfig', JSON.stringify(ejsConfig));
+}
+
+function openEjsConfig() {
+    document.getElementById('ejsServiceId').value  = ejsConfig.serviceId  || '';
+    document.getElementById('ejsTemplateId').value = ejsConfig.templateId || '';
+    document.getElementById('ejsPublicKey').value  = ejsConfig.publicKey  || '';
+    document.getElementById('ejsConfigModal').style.display = 'flex';
+}
+function closeEjsConfig() {
+    document.getElementById('ejsConfigModal').style.display = 'none';
+}
+
+// ==============================
+// 수신자 목록 (localStorage 유지)
+// ==============================
+let recipients = JSON.parse(localStorage.getItem('emailRecipients') || '[]');
+let selectedRecipients = new Set();
+
+function saveRecipients() {
+    localStorage.setItem('emailRecipients', JSON.stringify(recipients));
+}
+
+function renderRecipientList() {
+    const list = document.getElementById('recipientList');
+    if (!list) return;
+    if (recipients.length === 0) {
+        list.innerHTML = '<div style="color:#475569; font-size:0.85rem; text-align:center; padding:10px;">등록된 수신자가 없습니다</div>';
+        return;
+    }
+    list.innerHTML = recipients.map((r, i) => `
+        <div style="display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:8px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06);">
+            <input type="checkbox" id="rc_${i}" ${selectedRecipients.has(i) ? 'checked' : ''}
+                onchange="toggleRecipient(${i})"
+                style="width:16px; height:16px; accent-color:#7c3aed; cursor:pointer; flex-shrink:0;">
+            <label for="rc_${i}" style="flex:1; cursor:pointer;">
+                <span style="color:#e2e8f0; font-size:0.88rem;">${r.name}</span>
+                <span style="color:#64748b; font-size:0.82rem; margin-left:8px;">${r.email}</span>
+            </label>
+            <button onclick="removeRecipient(${i})" style="background:none; border:none; color:#ef4444; cursor:pointer; font-size:0.9rem; padding:2px 6px; border-radius:4px;">✕</button>
+        </div>
+    `).join('');
+}
+
+function renderRecipientTags() {
+    const container = document.getElementById('recipientTags');
+    if (!container) return;
+    const selected = recipients.filter((_, i) => selectedRecipients.has(i));
+    if (selected.length === 0) {
+        container.innerHTML = '<span style="color:#475569; font-size:0.82rem;" id="noRecipientMsg">수신자를 추가하세요</span>';
+        return;
+    }
+    container.innerHTML = selected.map(r => {
+        const realIdx = recipients.indexOf(r);
+        return `<span class="recipient-tag">${r.name} &lt;${r.email}&gt;<button onclick="toggleRecipient(${realIdx}); renderRecipientTags();">×</button></span>`;
+    }).join('');
+}
+
+function toggleRecipient(i) {
+    if (selectedRecipients.has(i)) selectedRecipients.delete(i);
+    else selectedRecipients.add(i);
+    renderRecipientTags();
+}
+
+function addRecipient() {
+    const name  = document.getElementById('newRecipientName').value.trim();
+    const email = document.getElementById('newRecipientEmail').value.trim();
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        alert('올바른 이메일 주소를 입력해주세요.'); return;
+    }
+    recipients.push({ name: name || email, email });
+    saveRecipients();
+    document.getElementById('newRecipientName').value = '';
+    document.getElementById('newRecipientEmail').value = '';
+    renderRecipientList();
+}
+
+function removeRecipient(i) {
+    selectedRecipients.delete(i);
+    const newSelected = new Set();
+    selectedRecipients.forEach(idx => { if (idx < i) newSelected.add(idx); else if (idx > i) newSelected.add(idx - 1); });
+    selectedRecipients = newSelected;
+    recipients.splice(i, 1);
+    saveRecipients();
+    renderRecipientList();
+    renderRecipientTags();
+}
+
+function openRecipientManager() {
+    renderRecipientList();
+    document.getElementById('recipientManagerModal').style.display = 'flex';
+}
+function closeRecipientManager() {
+    document.getElementById('recipientManagerModal').style.display = 'none';
+    renderRecipientTags();
+}
+
+// ==============================
+// 이메일 모달 열기 / 닫기
+// ==============================
+function openEmailModal() {
+    const plain = document.getElementById('output').value;
+    if (!plain.trim()) { alert('먼저 알림문을 생성해주세요.'); return; }
+
+    const now = new Date();
+    const dateStr = `${now.getFullYear()}.${String(now.getMonth()+1).padStart(2,'0')}.${String(now.getDate()).padStart(2,'0')}.`;
+    document.getElementById('emailSubject').value = `[${dateStr}] ${currentAlertType} 해양기상 알림문`;
+    // [ 2 PAGE ] 제거
+    let emailBody = plain.replace(/\[\s*2\s*PAGE\s*\]\s*\n*/gi, '');
+
+    // 날짜 줄: 한 줄 띄우고, 〈〉→<>로 교체해 monospace 정렬 맞춤
+    emailBody = emailBody.replace(
+        /(해양기상정보 알림문[^\n]*)\n[ \t　]*(〈[^\n]*〉)\n*/,
+        (match, title, dateLine) => {
+            const normalized = dateLine.replace(/〈/, '<').replace(/〉/, '>');
+            return `${title}\n\n${normalized}\n\n`;
+        }
+    );
+
+    document.getElementById('emailBody').value = emailBody;
+
+    // EmailJS 설정 여부 표시
+    const configured = ejsConfig.serviceId && ejsConfig.templateId && ejsConfig.publicKey;
+    document.getElementById('ejsStatusBadge').textContent = configured ? '✅ EmailJS 연동됨' : '⚠️ EmailJS 미설정';
+    document.getElementById('ejsStatusBadge').style.color = configured ? '#34d399' : '#fbbf24';
+
+    renderRecipientTags();
+    document.getElementById('emailModal').style.display = 'flex';
+}
+function closeEmailModal() {
+    document.getElementById('emailModal').style.display = 'none';
+}
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+        closeEmailModal();
+        closeRecipientManager();
+        closeEjsConfig();
+    }
+});
+
+// ==============================
+// 이메일 발송 (EmailJS or mailto fallback)
+// ==============================
+async function sendEmail() {
+    const selected = recipients.filter((_, i) => selectedRecipients.has(i));
+    if (selected.length === 0) { alert('수신자를 선택해주세요.'); return; }
+
+    const subject = document.getElementById('emailSubject').value;
+    const body    = document.getElementById('emailBody').value;
+    const toList  = selected.map(r => r.email);
+    const toStr   = toList.join(', ');
+
+    const configured = ejsConfig.serviceId && ejsConfig.templateId && ejsConfig.publicKey;
+
+    if (!configured) {
+        // fallback: mailto
+        window.location.href = `mailto:${toList.join(',')}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+        return;
+    }
+
+    // EmailJS 발송
+    const sendBtn = document.getElementById('sendEmailBtn');
+    sendBtn.disabled = true;
+    sendBtn.textContent = '발송 중...';
+
+    try {
+        emailjs.init(ejsConfig.publicKey);
+
+        // 수신자별 개별 발송
+        const promises = selected.map(r =>
+            emailjs.send(ejsConfig.serviceId, ejsConfig.templateId, {
+                to_email: r.email,
+                to_name:  r.name,
+                subject:  subject,
+                message:  body,
+                reply_to: r.email,
+            })
+        );
+        await Promise.all(promises);
+        alert(`✅ 이메일 발송 완료\n수신자: ${toStr}`);
+        closeEmailModal();
+    } catch (err) {
+        console.error('EmailJS 오류:', err);
+        alert(`❌ 발송 실패: ${err?.text || err?.message || JSON.stringify(err)}\n\n이메일 클라이언트로 열기를 시도합니다.`);
+        window.location.href = `mailto:${toList.join(',')}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    } finally {
+        sendBtn.disabled = false;
+        sendBtn.textContent = '✉️ 발송';
+    }
+}
+</script>
+
+</body>
+</html>
